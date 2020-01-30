@@ -20,10 +20,10 @@ import (
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-// NewServer creates an instance of Server with given json config.
-func NewServer(model *Model, ncs ops.OpSession) (*Server, error) {
+// NewAdapter creates an instance of Adapter with given json config.
+func NewAdapter(model *Model, ncs ops.OpSession) (*Adapter, error) {
 
-	s := &Server{
+	s := &Adapter{
 		model: model,
 		ncs:   ncs,
 	}

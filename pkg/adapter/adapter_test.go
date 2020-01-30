@@ -30,8 +30,8 @@ import (
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/server/modeldata"
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/server/modeldata/gostruct"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
 )
 
 var (
@@ -61,7 +61,7 @@ func TestGet(t *testing.T) {
 	}
 	defer ncs.Close()
 
-	s, err := NewServer(model, ncs)
+	s, err := NewAdapter(model, ncs)
 	if err != nil {
 		t.Fatalf("error in creating server: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestGet(t *testing.T) {
 
 // runTestGet requests a path from the server by Get grpc call, and compares if
 // the return code and response value are expected.
-func runTestGet(t *testing.T, s *Server, textPbPath string, wantRetCode codes.Code, wantRespVal interface{}, useModels []*pb.ModelData) {
+func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.Code, wantRespVal interface{}, useModels []*pb.ModelData) {
 	// Send request
 	var pbPath pb.Path
 	if err := proto.UnmarshalText(textPbPath, &pbPath); err != nil {

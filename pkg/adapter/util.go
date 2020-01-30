@@ -182,7 +182,7 @@ func isNil(i interface{}) bool {
 	}
 }
 
-func (s *Server) toGoStruct(jsonTree map[string]interface{}) (ygot.ValidatedGoStruct, error) {
+func (s *Adapter) toGoStruct(jsonTree map[string]interface{}) (ygot.ValidatedGoStruct, error) {
 	jsonDump, err := json.Marshal(jsonTree)
 	if err != nil {
 		return nil, fmt.Errorf("error in marshaling IETF JSON tree to bytes: %v", err)
@@ -195,7 +195,7 @@ func (s *Server) toGoStruct(jsonTree map[string]interface{}) (ygot.ValidatedGoSt
 }
 
 // checkEncodingAndModel checks whether encoding and models are supported by the server. Return error if anything is unsupported.
-func (s *Server) checkEncodingAndModel(encoding pb.Encoding, models []*pb.ModelData) error {
+func (s *Adapter) checkEncodingAndModel(encoding pb.Encoding, models []*pb.ModelData) error {
 	hasSupportedEncoding := false
 	for _, supportedEncoding := range supportedEncodings {
 		if encoding == supportedEncoding {
@@ -223,14 +223,14 @@ func (s *Server) checkEncodingAndModel(encoding pb.Encoding, models []*pb.ModelD
 
 // InternalUpdate is an experimental feature to let the server update its
 // internal states. Use it with your own risk.
-func (s *Server) InternalUpdate(fp func(config ygot.ValidatedGoStruct) error) error {
+func (s *Adapter) InternalUpdate(fp func(config ygot.ValidatedGoStruct) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return fp(s.config)
 }
 
 // GetConfig returns the config store
-func (s *Server) GetConfig() (ygot.ValidatedGoStruct, error) {
+func (s *Adapter) GetConfig() (ygot.ValidatedGoStruct, error) {
 	return s.config, nil
 }
 
@@ -334,7 +334,7 @@ func setPathWithoutAttribute(op pb.UpdateResult_Operation, curNode map[string]in
 }
 
 // sendResponse sends an SubscribeResponse to a gNMI client.
-func (s *Server) sendResponse(response *pb.SubscribeResponse, stream pb.GNMI_SubscribeServer) {
+func (s *Adapter) sendResponse(response *pb.SubscribeResponse, stream pb.GNMI_SubscribeServer) {
 	log.Info("Sending SubscribeResponse out to gNMI client: ", response)
 	err := stream.Send(response)
 	if err != nil {
@@ -344,7 +344,7 @@ func (s *Server) sendResponse(response *pb.SubscribeResponse, stream pb.GNMI_Sub
 }
 
 // getUpdateForPath finds a leaf node in the tree based on a given path, build the update message and return it back to the collector
-func (s *Server) getUpdateForPath(fullPath *pb.Path) (*pb.Update, error) {
+func (s *Adapter) getUpdateForPath(fullPath *pb.Path) (*pb.Update, error) {
 
 	node, stat := ygotutils.GetNode(s.model.schemaTreeRoot, s.config, fullPath)
 	if isNil(node) || stat.GetCode() != int32(cpb.Code_OK) {
@@ -389,7 +389,7 @@ func (s *Server) getUpdateForPath(fullPath *pb.Path) (*pb.Update, error) {
 }
 
 // getUpdate finds the node in the tree, build the update message and return it back to the collector
-func (s *Server) getUpdate(c *streamClient, subList *pb.SubscriptionList, path *pb.Path) (*pb.Update, error) {
+func (s *Adapter) getUpdate(c *streamClient, subList *pb.SubscriptionList, path *pb.Path) (*pb.Update, error) {
 
 	fullPath := path
 	prefix := subList.GetPrefix()
@@ -465,7 +465,7 @@ func (s *Server) getUpdate(c *streamClient, subList *pb.SubscriptionList, path *
 }
 
 // collector collects the latest update from the config.
-func (s *Server) collector(c *streamClient, request *pb.SubscriptionList) {
+func (s *Adapter) collector(c *streamClient, request *pb.SubscriptionList) {
 	for _, sub := range request.Subscription {
 		path := sub.GetPath()
 		update, err := s.getUpdate(c, request, path)
@@ -486,7 +486,7 @@ func (s *Server) collector(c *streamClient, request *pb.SubscriptionList) {
 
 // listenForUpdates reads update messages from the update channel, creates a
 // subscribe response and send it to the gnmi client.
-func (s *Server) listenForUpdates(c *streamClient) {
+func (s *Adapter) listenForUpdates(c *streamClient) {
 	for update := range c.UpdateChan {
 		if update.Val == nil {
 			deleteResponse := buildDeleteResponse(update.GetPath())
@@ -504,7 +504,7 @@ func (s *Server) listenForUpdates(c *streamClient) {
 }
 
 // configEventProducer produces update events for stream subscribers.
-func (s *Server) listenToConfigEvents(request *pb.SubscriptionList) {
+func (s *Adapter) listenToConfigEvents(request *pb.SubscriptionList) {
 	for update := range s.ConfigUpdate {
 		for key, c := range s.subscribers {
 			if key == update.GetPath().String() {

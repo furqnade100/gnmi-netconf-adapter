@@ -16,8 +16,9 @@
 package gnmi
 
 import (
-	"github.com/damianoneill/net/v2/netconf/ops"
 	"sync"
+
+	"github.com/damianoneill/net/v2/netconf/ops"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -32,11 +33,11 @@ var (
 	dataTypes          = []string{"config", "state", "operational", "all"}
 )
 
-// Server struct maintains the data structure for device config and implements the interface of gnmi server. It supports Capabilities, Get, and Set APIs.
+// Adapter struct maintains the data structure for device config and implements the interface of gnmi server. It supports Capabilities, Get, and Set APIs.
 // Typical usage:
-//	g := grpc.NewServer()
-//	s, err := Server.NewServer(model, config, callback)
-//	pb.NewServer(g, s)
+//	g := grpc.NewAdapter()
+//	s, err := Adapter.NewAdapter(model, config, callback)
+//	pb.NewAdapter(g, s)
 //	reflection.Register(g)
 //	listen, err := net.Listen("tcp", ":8080")
 //	g.Serve(listen)
@@ -49,9 +50,9 @@ var (
 //		//
 //		// Do something ...
 // }
-type Server struct {
+type Adapter struct {
 	model               *Model
-	ncs ops.OpSession
+	ncs                 ops.OpSession
 	config              ygot.ValidatedGoStruct
 	ConfigUpdate        chan *pb.Update
 	mu                  sync.RWMutex // mu is the RW lock to protect the access to config
