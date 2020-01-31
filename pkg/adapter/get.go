@@ -118,8 +118,6 @@ func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 
 		netconfMap := netconfToJson(result)
 
-		//=====================
-
 		jsonTree, err := getTarget(netconfMap, fullPath)
 		if err != nil {
 			return nil, err
@@ -142,10 +140,10 @@ func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 			}
 			continue
 		}
-		if entry.IsContainer() {
+		if entry.IsDir() {
 
 			dataTypeString := strings.ToLower(dataType.String())
-			jsonTree = pruneConfigData(jsonTree, strings.ToLower(dataTypeString), fullPath).(map[string]interface{})
+			jsonTree = pruneConfigData(jsonTree, strings.ToLower(dataTypeString), fullPath)
 			if err != nil {
 				msg := fmt.Sprintf("error in constructing %s JSON tree from requested node: %v", "Internal", err)
 				log.Error(msg)
@@ -177,7 +175,13 @@ func getTarget(mapin map[string]interface{}, path *pb.Path) (interface{}, error)
 	var value interface{} = mapin
 	for i, elem := range path.Elem {
 		ok := false
-		nextmap := value.(map[string]interface{})
+		var nextmap map[string]interface{}
+		switch v := value.(type) {
+		case map[string]interface{}:
+			nextmap = v
+		case []interface{}:
+			nextmap = v[0].(map[string]interface{})
+		}
 		value, ok = nextmap[elem.Name]
 		if !ok {
 			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)

@@ -46,9 +46,6 @@ var (
 
 func TestGet(t *testing.T) {
 
-	//ts := testserver.NewTestNetconfServer(nil).WithRequestHandler(testserver.SmartRequesttHandler)
-	//defer ts.Close()
-
 	sshConfig := &ssh.ClientConfig{
 		User:            "regress",
 		Auth:            []ssh.AuthMethod{ssh.Password("MaRtInI")},
@@ -112,67 +109,15 @@ func TestGet(t *testing.T) {
 						name: "groups"
 						key: <key: "name" value: "re1" >
 					>
+					elem: <name: "system" >
 	`,
 		wantRetCode: codes.OK,
-		wantRespVal: "SECURE",
+		wantRespVal: `{"host-name": "habs1"}`,
 	}, {
 		desc:        "root child node",
-		textPbPath:  `elem: <name: "components" >`,
+		textPbPath:  `elem: <name: "configuration" >`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{
-							"openconfig-platform:component": [{
-								"config": {
-						        	"name": "swpri1-1-1"
-								},
-						        "name": "swpri1-1-1"
-							}]}`,
-	}, {
-		desc: "node with attribute",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{
-								"openconfig-platform:config": {"name": "swpri1-1-1"},
-								"openconfig-platform:name": "swpri1-1-1"
-							}`,
-	}, {
-		desc: "node with attribute in its parent",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>
-								elem: <name: "config" >`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{"openconfig-platform:name": "swpri1-1-1"}`,
-	}, {
-		desc: "ref leaf node",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>
-								elem: <name: "name" >`,
-		wantRetCode: codes.OK,
-		wantRespVal: "swpri1-1-1",
-	}, {
-		desc: "regular leaf node",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>
-								elem: <name: "config" >
-								elem: <name: "name" >`,
-		wantRetCode: codes.OK,
-		wantRespVal: "swpri1-1-1",
+		wantRespVal: `{}`,
 	}, {
 		desc: "non-existing node: wrong path name",
 		textPbPath: `
