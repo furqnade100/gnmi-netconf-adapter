@@ -82,7 +82,7 @@ func TestGet(t *testing.T) {
 	}, {
 		desc:        "root node",
 		wantRetCode: codes.OK,
-		wantRespVal: ``,
+		wantRespVal: `{}`,
 	}, {
 		desc: "get leaf",
 		textPbPath: `
@@ -93,7 +93,7 @@ func TestGet(t *testing.T) {
 					elem: <name: "max-sessions-per-connection" >
 				`,
 		wantRetCode: codes.OK,
-		wantRespVal: uint64(10),
+		wantRespVal: uint64(32),
 	}, {
 		desc: "get container",
 		textPbPath: `

@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openconfig/gnmi/value"
+
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
 	"github.com/openconfig/goyang/pkg/yang"
 
@@ -124,7 +126,20 @@ func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 
 		if entry.IsLeaf() {
-			// tbd
+			var err error
+			var val *pb.TypedValue
+			val, err = value.FromScalar(reflect.ValueOf(&jsonTree).Elem().Interface())
+			if err != nil {
+				msg := fmt.Sprintf("leaf node %v does not contain a scalar type value: %v", path, err)
+				log.Error(msg)
+				return nil, status.Error(codes.Internal, msg)
+			}
+			update := &pb.Update{Path: path, Val: val}
+			notifications[i] = &pb.Notification{
+				Timestamp: ts,
+				Prefix:    prefix,
+				Update:    []*pb.Update{update},
+			}
 			continue
 		}
 		if entry.IsContainer() {
