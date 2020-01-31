@@ -103,7 +103,7 @@ func TestGet(t *testing.T) {
 					elem: <name: "ssh" >
 				`,
 		wantRetCode: codes.OK,
-		wantRespVal: uint64(10),
+		wantRespVal: `{"max-sessions-per-connection": "32"}`,
 	}, {
 		desc: "get keyed container",
 		textPbPath: `
@@ -242,15 +242,15 @@ func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.C
 			t.Fatalf("got %d updates in the notification, want 1", len(updates))
 		}
 		val := updates[0].GetVal()
-		if val.GetJsonIetfVal() == nil {
+		if val.GetJsonVal() == nil {
 			gotVal, err = value.ToScalar(val)
 			if err != nil {
 				t.Errorf("got: %v, want a scalar value", gotVal)
 			}
 		} else {
 			// Unmarshal json data to gotVal container for comparison
-			if err := json.Unmarshal(val.GetJsonIetfVal(), &gotVal); err != nil {
-				t.Fatalf("error in unmarshaling IETF JSON data to json container: %v", err)
+			if err := json.Unmarshal(val.GetJsonVal(), &gotVal); err != nil {
+				t.Fatalf("error in unmarshaling JSON data to json container: %v", err)
 			}
 			var wantJSONStruct interface{}
 			if err := json.Unmarshal([]byte(wantRespVal.(string)), &wantJSONStruct); err != nil {
