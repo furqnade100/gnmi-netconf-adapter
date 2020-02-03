@@ -16,8 +16,6 @@
 package gnmi
 
 import (
-	"sync"
-
 	"github.com/damianoneill/net/v2/netconf/ops"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
@@ -55,7 +53,6 @@ type Adapter struct {
 	ncs                 ops.OpSession
 	config              ygot.ValidatedGoStruct
 	ConfigUpdate        chan *pb.Update
-	mu                  sync.RWMutex // mu is the RW lock to protect the access to config
 	readOnlyUpdateValue *pb.Update
 	subscribers         map[string]*streamClient
 }

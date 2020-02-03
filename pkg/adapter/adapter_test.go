@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/damianoneill/net/v2/netconf/ops"
 
 	"github.com/golang/protobuf/proto"
@@ -46,16 +48,7 @@ var (
 
 func TestGet(t *testing.T) {
 
-	sshConfig := &ssh.ClientConfig{
-		User:            "regress",
-		Auth:            []ssh.AuthMethod{ssh.Password("MaRtInI")},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	ncs, err := ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("10.228.63.5:%d", 830))
-	if err != nil {
-		t.Fatalf("failed in creating server: %v", err)
-	}
+	ncs, err := testServer(t)
 	defer ncs.Close()
 
 	s, err := NewAdapter(model, ncs)
@@ -208,4 +201,137 @@ func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.C
 	if !reflect.DeepEqual(gotVal, wantRespVal) {
 		t.Errorf("got: %v (%T),\nwant %v (%T)", gotVal, gotVal, wantRespVal, wantRespVal)
 	}
+}
+
+type gnmiSetTestCase struct {
+	desc        string                    // description of test case.
+	initConfig  string                    // config before the operation.
+	op          pb.UpdateResult_Operation // operation type.
+	textPbPath  string                    // text format of gnmi Path proto.
+	val         *pb.TypedValue            // value for UPDATE/REPLACE operations. always nil for DELETE.
+	wantRetCode codes.Code                // grpc return code.
+	wantConfig  string                    // config after the operation.
+}
+
+func TestUpdate(t *testing.T) {
+	tests := []gnmiSetTestCase{{
+		desc: "update subtree",
+		op:   pb.UpdateResult_UPDATE,
+		textPbPath: `
+			elem: <name: "configuration" >
+			elem: <name: "system" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonIetfVal{
+				JsonIetfVal: []byte(`{"max-sessions-per-connection": 16}`),
+			},
+		},
+		wantRetCode: codes.OK,
+	}, {
+		desc: "update leaf node",
+		initConfig: `{
+			"system": {
+				"config": {
+					"hostname": "switch_a"
+				}
+			}
+		}`,
+		op: pb.UpdateResult_UPDATE,
+		textPbPath: `
+		elem: <name: "configuration" >
+		elem: <name: "system" >
+		elem: <name: "services" >
+		elem: <name: "ssh" >
+		elem: <name: "max-sessions-per-connection" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_IntVal{IntVal: 32},
+		},
+		wantRetCode: codes.OK,
+		wantConfig: `{
+			"system": {
+				"config": {
+					"domain-name": "foo.bar.com",
+					"hostname": "switch_a"
+				}
+			}
+		}`,
+	}}
+
+	ncs, err := testServer(t)
+	assert.NoError(t, err)
+	defer ncs.Close()
+	s, err := NewAdapter(model, ncs)
+	if err != nil {
+		t.Fatalf("error in creating server: %v", err)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			runTestSet(t, s, model, tc)
+		})
+	}
+}
+
+func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
+
+	// Send request
+	var pbPath pb.Path
+	if err := proto.UnmarshalText(tc.textPbPath, &pbPath); err != nil {
+		t.Fatalf("error in unmarshaling path: %v", err)
+	}
+	var req *pb.SetRequest
+	switch tc.op {
+	case pb.UpdateResult_DELETE:
+		req = &pb.SetRequest{Delete: []*pb.Path{&pbPath}}
+	case pb.UpdateResult_REPLACE:
+		req = &pb.SetRequest{Replace: []*pb.Update{{Path: &pbPath, Val: tc.val}}}
+	case pb.UpdateResult_UPDATE:
+		req = &pb.SetRequest{Update: []*pb.Update{{Path: &pbPath, Val: tc.val}}}
+	default:
+		t.Fatalf("invalid op type: %v", tc.op)
+	}
+	_, err := s.Set(nil, req)
+
+	// Check return code
+	gotRetStatus, ok := status.FromError(err)
+	if !ok {
+		t.Fatal("got a non-grpc error from grpc call")
+	}
+	if gotRetStatus.Code() != tc.wantRetCode {
+		t.Fatalf("got return code %v, want %v\nerror message: %v", gotRetStatus.Code(), tc.wantRetCode, err)
+	}
+
+	//// Check server config
+	//wantConfigStruct, err := m.NewConfigStruct([]byte(tc.wantConfig))
+	//if err != nil {
+	//	t.Fatalf("wantConfig data cannot be loaded as a config struct: %v", err)
+	//}
+	//wantConfigJSON, err := ygot.ConstructIETFJSON(wantConfigStruct, &ygot.RFC7951JSONConfig{})
+	//if err != nil {
+	//	t.Fatalf("error in constructing IETF JSON tree from wanted config: %v", err)
+	//}
+	//gotConfigJSON, err := ygot.ConstructIETFJSON(s.config, &ygot.RFC7951JSONConfig{})
+	//if err != nil {
+	//	t.Fatalf("error in constructing IETF JSON tree from server config: %v", err)
+	//}
+	//if !reflect.DeepEqual(gotConfigJSON, wantConfigJSON) {
+	//	t.Fatalf("got server config %v\nwant: %v", gotConfigJSON, wantConfigJSON)
+	//}
+}
+
+func testServer(t *testing.T) (ops.OpSession, error) {
+	sshConfig := &ssh.ClientConfig{
+		User:            "r......",
+		Auth:            []ssh.AuthMethod{ssh.Password("M......")},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	ncs, err := ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("10.228.63.5:%d", 830))
+	if err != nil {
+		t.Fatalf("failed in creating server: %v", err)
+	}
+	return ncs, err
 }

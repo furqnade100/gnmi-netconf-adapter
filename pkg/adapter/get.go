@@ -51,46 +51,6 @@ func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 	paths := req.GetPath()
 	notifications := make([]*pb.Notification, len(paths))
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	//if paths == nil && dataType.String() != "" {
-	//
-	//	jsonType := "IETF"
-	//	if req.GetEncoding() == pb.Encoding_JSON {
-	//		jsonType = "Internal"
-	//	}
-	//	notifications := make([]*pb.Notification, 1)
-	//	path := pb.Path{}
-	//	// Gets the whole config data tree
-	//	node, stat := ygotutils.GetNode(s.model.schemaTreeRoot, s.config, &path)
-	//	if isNil(node) || stat.GetCode() != int32(cpb.Code_OK) {
-	//		return nil, status.Errorf(codes.NotFound, "path %v not found", path)
-	//	}
-	//
-	//	nodeStruct, _ := node.(ygot.GoStruct)
-	//	jsonTree, _ := ygot.ConstructIETFJSON(nodeStruct, &ygot.RFC7951JSONConfig{AppendModuleName: true})
-	//
-	//	jsonTree = pruneConfigData(jsonTree, strings.ToLower(dataType.String()), &path).(map[string]interface{})
-	//	jsonDump, err := json.Marshal(jsonTree)
-	//
-	//	if err != nil {
-	//		msg := fmt.Sprintf("error in marshaling %s JSON tree to bytes: %v", jsonType, err)
-	//		log.Error(msg)
-	//		return nil, status.Error(codes.Internal, msg)
-	//	}
-	//	ts := time.Now().UnixNano()
-	//
-	//	update := buildUpdate(jsonDump, &path, jsonType)
-	//	notifications[0] = &pb.Notification{
-	//		Timestamp: ts,
-	//		Prefix:    prefix,
-	//		Update:    []*pb.Update{update},
-	//	}
-	//	resp := &pb.GetResponse{Notification: notifications}
-	//	return resp, nil
-	//}
-
 	for i, path := range paths {
 		// Get schema node for path from config struct.
 		fullPath := path
@@ -116,6 +76,7 @@ func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 		ts := time.Now().UnixNano()
 
+		fmt.Println(result)
 		netconfMap := netconfToJson(result)
 
 		jsonTree, err := getTarget(netconfMap, fullPath)
