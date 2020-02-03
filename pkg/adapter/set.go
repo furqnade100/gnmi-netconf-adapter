@@ -34,6 +34,21 @@ import (
 // doDelete deletes the path from the json tree if the path exists. If success,
 // it calls the callback function to apply the change to the device hardware.
 func (s *Adapter) doDelete(prefix, path *pb.Path) (*pb.UpdateResult, error) {
+
+	fullPath := path
+	if prefix != nil {
+		fullPath = gnmiFullPath(prefix, path)
+	}
+
+	request, _ := deleteRequest(fullPath)
+	fmt.Println("request", request)
+
+	err := s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
+	}
+	fmt.Println("edit-config (delete) ok")
+
 	//// Update json tree of the device config
 	//var curNode interface{} = jsonTree
 	//pathDeleted := false
@@ -103,7 +118,7 @@ func (s *Adapter) doReplaceOrUpdate(op pb.UpdateResult_Operation, prefix, path *
 		return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
 	}
 
-	request, _ := editConfigRequest(fullPath, val, entry)
+	request, _ := editRequest(fullPath, val, entry)
 	fmt.Println("request", request)
 
 	err := s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
@@ -240,7 +255,7 @@ func (s *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 
 	return setResponse, nil
 }
-func editConfigRequest(path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (interface{}, error) {
+func editRequest(path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (interface{}, error) {
 
 	var editValue interface{}
 	if entry.IsDir() {
@@ -272,6 +287,35 @@ func editConfigRequest(path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (
 		_ = jsonToXml(editValue.(map[string]interface{}), enc)
 	} else {
 		_ = enc.EncodeToken(xml.CharData(fmt.Sprintf("%v", editValue)))
+	}
+
+	for i := len(path.Elem) - 1; i >= 0; i-- {
+		_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: path.Elem[i].Name}})
+	}
+
+	_ = enc.Flush()
+	filter := b2.String()
+	if len(filter) == 0 {
+		return nil, nil
+	}
+	return filter, nil
+}
+
+func deleteRequest(path *pb.Path) (interface{}, error) {
+
+	var b2 bytes.Buffer
+	enc := xml.NewEncoder(&b2)
+	for i, elem := range path.Elem {
+		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
+		if i == len(path.Elem)-1 {
+			startEl.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "operation"}, Value: "delete"}}
+		}
+		_ = enc.EncodeToken(startEl)
+		for k, v := range elem.Key {
+			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
+			_ = enc.EncodeToken(xml.CharData(v))
+			_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: k}})
+		}
 	}
 
 	for i := len(path.Elem) - 1; i >= 0; i-- {

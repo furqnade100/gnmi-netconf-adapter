@@ -275,6 +275,46 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	tests := []gnmiSetTestCase{{
+		desc: "delete leaf node",
+		op:   pb.UpdateResult_DELETE,
+		textPbPath: `
+		elem: <name: "configuration" >
+		elem: <name: "system" >
+		elem: <name: "services" >
+		elem: <name: "ssh" >
+		elem: <name: "max-sessions-per-connection" >
+		`,
+		wantRetCode: codes.OK,
+	}, {
+		desc: "delete sub-tree",
+		op:   pb.UpdateResult_DELETE,
+		textPbPath: `
+		elem: <name: "configuration" >
+		elem: <name: "system" >
+		elem: <name: "services" >
+		elem: <name: "ssh" >
+		`,
+		wantRetCode: codes.OK,
+	},
+	}
+
+	ncs, err := testServer(t)
+	assert.NoError(t, err)
+	defer ncs.Close()
+	s, err := NewAdapter(model, ncs)
+	if err != nil {
+		t.Fatalf("error in creating server: %v", err)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			runTestSet(t, s, model, tc)
+		})
+	}
+}
+
 func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 
 	// Send request
