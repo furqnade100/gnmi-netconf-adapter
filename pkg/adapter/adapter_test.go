@@ -315,6 +315,229 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestReplace(t *testing.T) {
+
+	tests := []gnmiSetTestCase{{
+		desc: "replace subtree",
+		op:   pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "configuration" >
+			elem: <name: "system" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonIetfVal{
+				JsonIetfVal: []byte(`{"max-sessions-per-connection": 16}`),
+			},
+		},
+		wantRetCode: codes.OK,
+	}, {
+		desc:       "replace a keyed list subtree",
+		initConfig: `{}`,
+		op:         pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "components" >
+			elem: <
+				name: "component"
+				key: <key: "name" value: "swpri1-1-1" >
+			>`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonIetfVal{
+				JsonIetfVal: []byte(`{"config": {"name": "swpri1-1-1"}}`),
+			},
+		},
+		wantRetCode: codes.OK,
+		wantConfig: `{
+			"components": {
+				"component": [
+					{
+						"name": "swpri1-1-1",
+						"config": {
+							"name": "swpri1-1-1"
+						}
+					}
+				]
+			}
+		}`,
+	}, {
+		desc: "replace node with int type attribute in its precedent path",
+		initConfig: `{
+			"system": {
+				"openflow": {
+					"controllers": {
+						"controller": [
+							{
+								"config": {
+									"name": "main"
+								},
+								"name": "main"
+							}
+						]
+					}
+				}
+			}
+		}`,
+		op: pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "system" >
+			elem: <name: "openflow" >
+			elem: <name: "controllers" >
+			elem: <
+				name: "controller"
+				key: <key: "name" value: "main" >
+			>
+			elem: <name: "connections" >
+			elem: <
+				name: "connection"
+				key: <key: "aux-id" value: "0" >
+			>
+			elem: <name: "config" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonIetfVal{
+				JsonIetfVal: []byte(`{"address": "192.0.2.10", "aux-id": 0}`),
+			},
+		},
+		wantRetCode: codes.OK,
+		wantConfig: `{
+			"system": {
+				"openflow": {
+					"controllers": {
+						"controller": [
+							{
+								"config": {
+									"name": "main"
+								},
+								"connections": {
+									"connection": [
+										{
+											"aux-id": 0,
+											"config": {
+												"address": "192.0.2.10",
+												"aux-id": 0
+											}
+										}
+									]
+								},
+								"name": "main"
+							}
+						]
+					}
+				}
+			}
+		}`,
+	}, {
+		desc:       "replace a leaf node of int type",
+		initConfig: `{}`,
+		op:         pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "system" >
+			elem: <name: "openflow" >
+			elem: <name: "agent" >
+			elem: <name: "config" >
+			elem: <name: "backoff-interval" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_IntVal{IntVal: 5},
+		},
+		wantRetCode: codes.OK,
+		wantConfig: `{
+			"system": {
+				"openflow": {
+					"agent": {
+						"config": {
+							"backoff-interval": 5
+						}
+					}
+				}
+			}
+		}`,
+	}, {
+		desc:       "replace a leaf node of string type",
+		initConfig: `{}`,
+		op:         pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "system" >
+			elem: <name: "openflow" >
+			elem: <name: "agent" >
+			elem: <name: "config" >
+			elem: <name: "datapath-id" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_StringVal{StringVal: "00:16:3e:00:00:00:00:00"},
+		},
+		wantRetCode: codes.OK,
+		wantConfig: `{
+			"system": {
+				"openflow": {
+					"agent": {
+						"config": {
+							"datapath-id": "00:16:3e:00:00:00:00:00"
+						}
+					}
+				}
+			}
+		}`,
+	}, {
+		desc:       "replace a leaf node of enum type",
+		initConfig: `{}`,
+		op:         pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "system" >
+			elem: <name: "openflow" >
+			elem: <name: "agent" >
+			elem: <name: "config" >
+			elem: <name: "failure-mode" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_StringVal{StringVal: "SECURE"},
+		},
+		wantRetCode: codes.OK,
+		wantConfig: `{
+			"system": {
+				"openflow": {
+					"agent": {
+						"config": {
+							"failure-mode": "SECURE"
+						}
+					}
+				}
+			}
+		}`,
+	}, {
+		desc:       "replace an non-existing leaf node",
+		initConfig: `{}`,
+		op:         pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "system" >
+			elem: <name: "openflow" >
+			elem: <name: "agent" >
+			elem: <name: "config" >
+			elem: <name: "foo-bar" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_StringVal{StringVal: "SECURE"},
+		},
+		wantRetCode: codes.NotFound,
+		wantConfig:  `{}`,
+	}}
+
+	ncs, err := testServer(t)
+	assert.NoError(t, err)
+	defer ncs.Close()
+	s, err := NewAdapter(model, ncs)
+	if err != nil {
+		t.Fatalf("error in creating server: %v", err)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			runTestSet(t, s, model, tc)
+		})
+	}
+}
+
 func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 
 	// Send request

@@ -41,13 +41,16 @@ func (s *Adapter) doDelete(prefix, path *pb.Path) (*pb.UpdateResult, error) {
 	}
 
 	request, _ := deleteRequest(fullPath)
-	fmt.Println("request", request)
 
 	err := s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
 	}
-	fmt.Println("edit-config (delete) ok")
+
+	return &pb.UpdateResult{
+		Path: path,
+		Op:   pb.UpdateResult_DELETE,
+	}, nil
 
 	//// Update json tree of the device config
 	//var curNode interface{} = jsonTree
@@ -100,7 +103,6 @@ func (s *Adapter) doDelete(prefix, path *pb.Path) (*pb.UpdateResult, error) {
 	//	Path: path,
 	//	Op:   pb.UpdateResult_DELETE,
 	//}, nil
-	return nil, nil
 }
 
 // doReplaceOrUpdate validates the replace or update operation to be applied to
@@ -118,14 +120,17 @@ func (s *Adapter) doReplaceOrUpdate(op pb.UpdateResult_Operation, prefix, path *
 		return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
 	}
 
-	request, _ := editRequest(fullPath, val, entry)
-	fmt.Println("request", request)
+	request, _ := editRequest(op, fullPath, val, entry)
 
 	err := s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
 	}
-	fmt.Println("edit-config ok")
+
+	return &pb.UpdateResult{
+		Path: path,
+		Op:   op,
+	}, nil
 
 	//// Validate the operation.
 	//fullPath := gnmiFullPath(prefix, path)
@@ -217,7 +222,6 @@ func (s *Adapter) doReplaceOrUpdate(op pb.UpdateResult_Operation, prefix, path *
 	//	Path: path,
 	//	Op:   op,
 	//}, nil
-	return nil, nil
 }
 
 // Set implements the Set RPC in gNMI spec.
@@ -255,7 +259,17 @@ func (s *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 
 	return setResponse, nil
 }
-func editRequest(path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (interface{}, error) {
+func editRequest(op pb.UpdateResult_Operation, path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (interface{}, error) {
+
+	opdesc := ""
+	switch op {
+	case pb.UpdateResult_REPLACE:
+		opdesc = "replace"
+	case pb.UpdateResult_UPDATE:
+		opdesc = "merge"
+	default:
+		panic(fmt.Sprintf("unexpected operation %s", op))
+	}
 
 	var editValue interface{}
 	if entry.IsDir() {
@@ -274,8 +288,12 @@ func editRequest(path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (interf
 
 	var b2 bytes.Buffer
 	enc := xml.NewEncoder(&b2)
-	for _, elem := range path.Elem {
-		_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: elem.Name}})
+	for i, elem := range path.Elem {
+		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
+		if i == len(path.Elem)-1 {
+			startEl.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "operation"}, Value: opdesc}}
+		}
+		_ = enc.EncodeToken(startEl)
 		for k, v := range elem.Key {
 			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
 			_ = enc.EncodeToken(xml.CharData(v))
