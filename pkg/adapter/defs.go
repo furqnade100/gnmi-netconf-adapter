@@ -27,7 +27,7 @@ type ConfigCallback func(ygot.ValidatedGoStruct) error
 
 var (
 	pbRootPath         = &pb.Path{}
-	supportedEncodings = []pb.Encoding{pb.Encoding_JSON, pb.Encoding_JSON_IETF}
+	supportedEncodings = []pb.Encoding{pb.Encoding_JSON}
 	dataTypes          = []string{"config", "state", "operational", "all"}
 )
 
