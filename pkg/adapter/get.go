@@ -26,7 +26,6 @@ import (
 
 	"github.com/openconfig/gnmi/value"
 
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
 	"github.com/openconfig/goyang/pkg/yang"
 
 	"github.com/damianoneill/net/v2/netconf/ops"
@@ -62,7 +61,7 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 			return nil, status.Error(codes.Unimplemented, "deprecated path element type is unsupported")
 		}
 
-		entry := getSchemaEntryForPath(fullPath)
+		entry := a.getSchemaEntryForPath(fullPath)
 		if entry == nil {
 			return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
 		}
@@ -76,7 +75,7 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 		ts := time.Now().UnixNano()
 
-		netconfMap := netconfToJson(result)
+		netconfMap := a.netconfToJson(result)
 
 		jsonTree, err := getTarget(netconfMap, fullPath)
 		if err != nil {
@@ -154,8 +153,8 @@ func getTarget(mapin map[string]interface{}, path *pb.Path) (interface{}, error)
 	return value, nil
 }
 
-func getSchemaEntryForPath(path *pb.Path) *yang.Entry {
-	rootEntry := gostruct.SchemaTree["Device"]
+func (a *Adapter) getSchemaEntryForPath(path *pb.Path) *yang.Entry {
+	rootEntry := a.model.schemaTreeRoot
 	if path.Elem == nil {
 		return rootEntry
 	}
@@ -196,7 +195,7 @@ func getSubtreeFilterForPath(path *pb.Path) interface{} {
 	return filter
 }
 
-func netconfToJson(result string) map[string]interface{} {
+func (a *Adapter) netconfToJson(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
 	type eldesc struct {
@@ -209,7 +208,7 @@ func netconfToJson(result string) map[string]interface{} {
 	stack := []*eldesc{}
 	var cureld *eldesc
 
-	schema, _ := gostruct.SchemaTree["Device"]
+	schema := a.model.schemaTreeRoot
 
 	for {
 		tk, _ := dec.Token()

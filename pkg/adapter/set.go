@@ -33,7 +33,7 @@ import (
 
 func (a *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
 
-	request, err := mapRequest(op, prefix, path, val)
+	request, err := a.mapRequest(op, prefix, path, val)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 	return setResponse, nil
 }
 
-func mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.TypedValue) (interface{}, error) {
+func (a *Adapter) mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.TypedValue) (interface{}, error) {
 
 	fullPath := path
 	if prefix != nil {
@@ -108,7 +108,7 @@ func mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.T
 	}
 
 	if op != pb.UpdateResult_DELETE {
-		entry := getSchemaEntryForPath(fullPath)
+		entry := a.getSchemaEntryForPath(fullPath)
 		if entry == nil {
 			return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
 		}

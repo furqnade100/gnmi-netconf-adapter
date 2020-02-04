@@ -22,10 +22,8 @@ import (
 // NewAdapter creates an instance of Adapter.
 func NewAdapter(model *Model, ncs ops.OpSession) (*Adapter, error) {
 
-	s := &Adapter{
+	return &Adapter{
 		model: model,
 		ncs:   ncs,
-	}
-
-	return s, nil
+	}, nil
 }

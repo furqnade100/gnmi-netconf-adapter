@@ -39,10 +39,9 @@ import (
 var (
 	// model is the model for test config server.
 	model = &Model{
-		modelData:       modeldata.ModelData,
-		schemaTreeRoot:  gostruct.SchemaTree["Device"],
-		jsonUnmarshaler: gostruct.Unmarshal,
-		enumData:        gostruct.ΛEnum,
+		modelData:      modeldata.ModelData,
+		schemaTreeRoot: gostruct.SchemaTree["Device"],
+		enumData:       gostruct.ΛEnum,
 	}
 )
 
