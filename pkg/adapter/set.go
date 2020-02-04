@@ -31,98 +31,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// doDelete deletes the path from the json tree if the path exists. If success,
-// it calls the callback function to apply the change to the device hardware.
-func (s *Adapter) doDelete(prefix, path *pb.Path) (*pb.UpdateResult, error) {
+func (s *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
 
-	fullPath := path
-	if prefix != nil {
-		fullPath = gnmiFullPath(prefix, path)
-	}
-
-	request, _ := deleteRequest(fullPath)
-
-	err := s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
+	request, err := mapRequest(op, prefix, path, val)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
+		return nil, err
 	}
 
-	return &pb.UpdateResult{
-		Path: path,
-		Op:   pb.UpdateResult_DELETE,
-	}, nil
-
-	//// Update json tree of the device config
-	//var curNode interface{} = jsonTree
-	//pathDeleted := false
-	//fullPath := gnmiFullPath(prefix, path)
-	//schema := s.model.schemaTreeRoot
-	//for i, elem := range fullPath.Elem { // Delete sub-tree or leaf node.
-	//	node, ok := curNode.(map[string]interface{})
-	//	if !ok {
-	//		break
-	//	}
-	//
-	//	// Delete node
-	//	if i == len(fullPath.Elem)-1 {
-	//		if elem.GetKey() == nil {
-	//			delete(node, elem.Name)
-	//			pathDeleted = true
-	//			break
-	//		}
-	//		pathDeleted = deleteKeyedListEntry(node, elem)
-	//		break
-	//	}
-	//
-	//	if curNode, schema = getChildNode(node, schema, elem, false); curNode == nil {
-	//		break
-	//	}
-	//}
-	//if reflect.DeepEqual(fullPath, pbRootPath) { // Delete root
-	//	for k := range jsonTree {
-	//		delete(jsonTree, k)
-	//	}
-	//}
-	//
-	//// Apply the validated operation to the config tree and device.
-	//if pathDeleted {
-	//	newConfig, err := s.toGoStruct(jsonTree)
-	//	if err != nil {
-	//		return nil, status.Error(codes.Internal, err.Error())
-	//	}
-	//	if s.callback != nil {
-	//		if applyErr := s.callback(newConfig); applyErr != nil {
-	//			if rollbackErr := s.callback(s.config); rollbackErr != nil {
-	//				return nil, status.Errorf(codes.Internal, "error in rollback the failed operation (%v): %v", applyErr, rollbackErr)
-	//			}
-	//			return nil, status.Errorf(codes.Aborted, "error in applying operation to device: %v", applyErr)
-	//		}
-	//	}
-	//}
-	//return &pb.UpdateResult{
-	//	Path: path,
-	//	Op:   pb.UpdateResult_DELETE,
-	//}, nil
-}
-
-// doReplaceOrUpdate validates the replace or update operation to be applied to
-// the device, modifies the json tree of the config struct, then calls the
-// callback function to apply the operation to the device hardware.
-func (s *Adapter) doReplaceOrUpdate(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
-
-	fullPath := path
-	if prefix != nil {
-		fullPath = gnmiFullPath(prefix, path)
-	}
-
-	entry := getSchemaEntryForPath(fullPath)
-	if entry == nil {
-		return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
-	}
-
-	request, _ := editRequest(op, fullPath, val, entry)
-
-	err := s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
+	err = s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
 	}
@@ -131,97 +47,6 @@ func (s *Adapter) doReplaceOrUpdate(op pb.UpdateResult_Operation, prefix, path *
 		Path: path,
 		Op:   op,
 	}, nil
-
-	//// Validate the operation.
-	//fullPath := gnmiFullPath(prefix, path)
-	//emptyNode, stat := ygotutils.NewNode(s.model.structRootType, fullPath)
-	//if stat.GetCode() != int32(cpb.Code_OK) {
-	//	return nil, status.Errorf(codes.NotFound, "path %v is not found in the config structure: %v", fullPath, stat)
-	//}
-	//var nodeVal interface{}
-	//nodeStruct, ok := emptyNode.(ygot.ValidatedGoStruct)
-	//if ok {
-	//	if err := s.model.jsonUnmarshaler(val.GetJsonIetfVal(), nodeStruct); err != nil {
-	//		return nil, status.Errorf(codes.InvalidArgument, "unmarshaling json data to config struct fails: %v", err)
-	//	}
-	//	if err := nodeStruct.Validate(); err != nil {
-	//		return nil, status.Errorf(codes.InvalidArgument, "config data validation fails: %v", err)
-	//	}
-	//	var err error
-	//	if nodeVal, err = ygot.ConstructIETFJSON(nodeStruct, &ygot.RFC7951JSONConfig{}); err != nil {
-	//		msg := fmt.Sprintf("error in constructing IETF JSON tree from config struct: %v", err)
-	//		log.Error(msg)
-	//		return nil, status.Error(codes.Internal, msg)
-	//	}
-	//} else {
-	//	var err error
-	//	if nodeVal, err = value.ToScalar(val); err != nil {
-	//		return nil, status.Errorf(codes.Internal, "cannot convert leaf node to scalar type: %v", err)
-	//	}
-	//}
-	//
-	//// Update json tree of the device config.
-	//var curNode interface{} = jsonTree
-	//schema := s.model.schemaTreeRoot
-	//for i, elem := range fullPath.Elem {
-	//	switch node := curNode.(type) {
-	//	case map[string]interface{}:
-	//		// Set node value.
-	//		if i == len(fullPath.Elem)-1 {
-	//			if elem.GetKey() == nil {
-	//				if grpcStatusError := setPathWithoutAttribute(op, node, elem, nodeVal); grpcStatusError != nil {
-	//					return nil, grpcStatusError
-	//				}
-	//				break
-	//			}
-	//			if grpcStatusError := setPathWithAttribute(op, node, elem, nodeVal); grpcStatusError != nil {
-	//				return nil, grpcStatusError
-	//			}
-	//			break
-	//		}
-	//
-	//		if curNode, schema = getChildNode(node, schema, elem, true); curNode == nil {
-	//			return nil, status.Errorf(codes.NotFound, "path elem not found: %v", elem)
-	//		}
-	//	case []interface{}:
-	//		return nil, status.Errorf(codes.NotFound, "uncompatible path elem: %v", elem)
-	//	default:
-	//		return nil, status.Errorf(codes.Internal, "wrong node type: %T", curNode)
-	//	}
-	//}
-	//if reflect.DeepEqual(fullPath, pbRootPath) { // Replace/Update root.
-	//	if op == pb.UpdateResult_UPDATE {
-	//		return nil, status.Error(codes.Unimplemented, "update the root of config tree is unsupported")
-	//	}
-	//	nodeValAsTree, ok := nodeVal.(map[string]interface{})
-	//	if !ok {
-	//		return nil, status.Errorf(codes.InvalidArgument, "expect a tree to replace the root, got a scalar value: %T", nodeVal)
-	//	}
-	//	for k := range jsonTree {
-	//		delete(jsonTree, k)
-	//	}
-	//	for k, v := range nodeValAsTree {
-	//		jsonTree[k] = v
-	//	}
-	//}
-	//newConfig, err := s.toGoStruct(jsonTree)
-	//if err != nil {
-	//	return nil, status.Error(codes.Internal, err.Error())
-	//}
-	//
-	//// Apply the validated operation to the device.
-	//if s.callback != nil {
-	//	if applyErr := s.callback(newConfig); applyErr != nil {
-	//		if rollbackErr := s.callback(s.config); rollbackErr != nil {
-	//			return nil, status.Errorf(codes.Internal, "error in rollback the failed operation (%v): %v", applyErr, rollbackErr)
-	//		}
-	//		return nil, status.Errorf(codes.Aborted, "error in applying operation to device: %v", applyErr)
-	//	}
-	//}
-	//return &pb.UpdateResult{
-	//	Path: path,
-	//	Op:   op,
-	//}, nil
 }
 
 // Set implements the Set RPC in gNMI spec.
@@ -231,21 +56,21 @@ func (s *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 	var results []*pb.UpdateResult
 
 	for _, path := range req.GetDelete() {
-		res, grpcStatusError := s.doDelete(prefix, path)
+		res, grpcStatusError := s.executeRequest(pb.UpdateResult_DELETE, prefix, path, nil)
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
 		results = append(results, res)
 	}
 	for _, upd := range req.GetReplace() {
-		res, grpcStatusError := s.doReplaceOrUpdate(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
+		res, grpcStatusError := s.executeRequest(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
 		results = append(results, res)
 	}
 	for _, upd := range req.GetUpdate() {
-		res, grpcStatusError := s.doReplaceOrUpdate(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
+		res, grpcStatusError := s.executeRequest(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
@@ -259,18 +84,59 @@ func (s *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 
 	return setResponse, nil
 }
-func editRequest(op pb.UpdateResult_Operation, path *pb.Path, inval *pb.TypedValue, entry *yang.Entry) (interface{}, error) {
 
-	opdesc := ""
-	switch op {
-	case pb.UpdateResult_REPLACE:
-		opdesc = "replace"
-	case pb.UpdateResult_UPDATE:
-		opdesc = "merge"
-	default:
-		panic(fmt.Sprintf("unexpected operation %s", op))
+func mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.TypedValue) (interface{}, error) {
+
+	fullPath := path
+	if prefix != nil {
+		fullPath = gnmiFullPath(prefix, path)
 	}
 
+	var b2 bytes.Buffer
+	enc := xml.NewEncoder(&b2)
+	for i, elem := range fullPath.Elem {
+		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
+		if i == len(fullPath.Elem)-1 {
+			startEl.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "operation"}, Value: mapOperation(op)}}
+		}
+		_ = enc.EncodeToken(startEl)
+		for k, v := range elem.Key {
+			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
+			_ = enc.EncodeToken(xml.CharData(v))
+			_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: k}})
+		}
+	}
+
+	if op != pb.UpdateResult_DELETE {
+		entry := getSchemaEntryForPath(fullPath)
+		if entry == nil {
+			return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
+		}
+
+		editValue, err := mapValue(entry, inval)
+		if err != nil {
+			return nil, err
+		}
+		if entry.IsDir() {
+			_ = jsonToXml(editValue.(map[string]interface{}), enc)
+		} else {
+			_ = enc.EncodeToken(xml.CharData(fmt.Sprintf("%v", editValue)))
+		}
+	}
+
+	for i := len(fullPath.Elem) - 1; i >= 0; i-- {
+		_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: fullPath.Elem[i].Name}})
+	}
+
+	_ = enc.Flush()
+	filter := b2.String()
+	if len(filter) == 0 {
+		return nil, nil
+	}
+	return filter, nil
+}
+
+func mapValue(entry *yang.Entry, inval *pb.TypedValue) (interface{}, error) {
 	var editValue interface{}
 	if entry.IsDir() {
 		editValue = make(map[string]interface{})
@@ -285,67 +151,22 @@ func editRequest(op pb.UpdateResult_Operation, path *pb.Path, inval *pb.TypedVal
 			return nil, status.Errorf(codes.Unknown, "invalid value %s", err)
 		}
 	}
-
-	var b2 bytes.Buffer
-	enc := xml.NewEncoder(&b2)
-	for i, elem := range path.Elem {
-		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
-		if i == len(path.Elem)-1 {
-			startEl.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "operation"}, Value: opdesc}}
-		}
-		_ = enc.EncodeToken(startEl)
-		for k, v := range elem.Key {
-			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
-			_ = enc.EncodeToken(xml.CharData(v))
-			_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: k}})
-		}
-	}
-
-	if entry.IsDir() {
-		_ = jsonToXml(editValue.(map[string]interface{}), enc)
-	} else {
-		_ = enc.EncodeToken(xml.CharData(fmt.Sprintf("%v", editValue)))
-	}
-
-	for i := len(path.Elem) - 1; i >= 0; i-- {
-		_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: path.Elem[i].Name}})
-	}
-
-	_ = enc.Flush()
-	filter := b2.String()
-	if len(filter) == 0 {
-		return nil, nil
-	}
-	return filter, nil
+	return editValue, nil
 }
 
-func deleteRequest(path *pb.Path) (interface{}, error) {
-
-	var b2 bytes.Buffer
-	enc := xml.NewEncoder(&b2)
-	for i, elem := range path.Elem {
-		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
-		if i == len(path.Elem)-1 {
-			startEl.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "operation"}, Value: "delete"}}
-		}
-		_ = enc.EncodeToken(startEl)
-		for k, v := range elem.Key {
-			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
-			_ = enc.EncodeToken(xml.CharData(v))
-			_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: k}})
-		}
+func mapOperation(op pb.UpdateResult_Operation) string {
+	opdesc := ""
+	switch op {
+	case pb.UpdateResult_REPLACE:
+		opdesc = "replace"
+	case pb.UpdateResult_UPDATE:
+		opdesc = "merge"
+	case pb.UpdateResult_DELETE:
+		opdesc = "delete"
+	default:
+		panic(fmt.Sprintf("unexpected operation %s", op))
 	}
-
-	for i := len(path.Elem) - 1; i >= 0; i-- {
-		_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: path.Elem[i].Name}})
-	}
-
-	_ = enc.Flush()
-	filter := b2.String()
-	if len(filter) == 0 {
-		return nil, nil
-	}
-	return filter, nil
+	return opdesc
 }
 
 func jsonToXml(input map[string]interface{}, enc *xml.Encoder) error {
