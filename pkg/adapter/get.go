@@ -39,11 +39,11 @@ import (
 )
 
 // Get implements the Get RPC in gNMI spec.
-func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
+func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 
 	dataType := req.GetType()
 
-	if err := s.checkEncodingAndModel(req.GetEncoding(), req.GetUseModels()); err != nil {
+	if err := a.checkEncodingAndModel(req.GetEncoding(), req.GetUseModels()); err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
@@ -70,13 +70,12 @@ func (s *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		filter := getSubtreeFilterForPath(fullPath)
 
 		result := ""
-		err := s.ncs.GetConfigSubtree(filter, ops.CandidateCfg, &result)
+		err := a.ncs.GetConfigSubtree(filter, ops.CandidateCfg, &result)
 		if err != nil {
 			return nil, status.Errorf(codes.Unknown, "Failed to get config for %v %v", fullPath, err)
 		}
 		ts := time.Now().UnixNano()
 
-		fmt.Println(result)
 		netconfMap := netconfToJson(result)
 
 		jsonTree, err := getTarget(netconfMap, fullPath)
@@ -271,15 +270,11 @@ func netconfToJson(result string) map[string]interface{} {
 			break
 		}
 	}
-
 	return top
 }
 
 func getChildSchema(name string, parent *yang.Entry) *yang.Entry {
-	var nschema *yang.Entry
-	ok := false
-	if nschema, ok = parent.Dir[name]; !ok {
-		// fmt.Println("Failed to find schema for ", v.Name.Local)
-	}
+	// Ignore any elements that are not in the schema.
+	nschema, _ := parent.Dir[name]
 	return nschema
 }

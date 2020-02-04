@@ -16,16 +16,21 @@
 package gnmi
 
 import (
-	"github.com/damianoneill/net/v2/netconf/ops"
+	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-// NewAdapter creates an instance of Adapter.
-func NewAdapter(model *Model, ncs ops.OpSession) (*Adapter, error) {
-
-	s := &Adapter{
-		model: model,
-		ncs:   ncs,
+// Capabilities returns supported encodings and supported models.
+func (a *Adapter) Capabilities(ctx context.Context, req *pb.CapabilityRequest) (*pb.CapabilityResponse, error) {
+	ver, err := getGNMIServiceVersion()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error in getting gnmi service version: %v", err)
 	}
-
-	return s, nil
+	return &pb.CapabilityResponse{
+		SupportedModels:    a.model.modelData,
+		SupportedEncodings: supportedEncodings,
+		GNMIVersion:        *ver,
+	}, nil
 }

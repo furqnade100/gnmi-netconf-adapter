@@ -49,12 +49,9 @@ var (
 //		// Do something ...
 // }
 type Adapter struct {
-	model               *Model
-	ncs                 ops.OpSession
-	config              ygot.ValidatedGoStruct
-	ConfigUpdate        chan *pb.Update
-	readOnlyUpdateValue *pb.Update
-	subscribers         map[string]*streamClient
+	model  *Model
+	ncs    ops.OpSession
+	config ygot.ValidatedGoStruct
 }
 
 var (

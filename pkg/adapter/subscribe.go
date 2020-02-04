@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
 package gnmi
 
 import (
-	"github.com/damianoneill/net/v2/netconf/ops"
+	pb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-// NewAdapter creates an instance of Adapter.
-func NewAdapter(model *Model, ncs ops.OpSession) (*Adapter, error) {
-
-	s := &Adapter{
-		model: model,
-		ncs:   ncs,
-	}
-
-	return s, nil
+// Subscribe handle subscribe requests including POLL, STREAM, ONCE subscribe requests
+func (a *Adapter) Subscribe(stream pb.GNMI_SubscribeServer) error {
+	// TODO Implement...
+	return nil
 }

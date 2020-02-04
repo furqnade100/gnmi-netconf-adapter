@@ -93,7 +93,7 @@ func TestGet(t *testing.T) {
 					elem: <name: "ssh" >
 				`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{"max-sessions-per-connection": "32"}`,
+		wantRespVal: `{"max-sessions-per-connection": "16"}`,
 	}, {
 		desc: "get keyed container",
 		textPbPath: `
@@ -154,7 +154,7 @@ func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.C
 	}
 	req := &pb.GetRequest{
 		Path:      []*pb.Path{&pbPath},
-		Encoding:  pb.Encoding_JSON_IETF,
+		Encoding:  pb.Encoding_JSON,
 		UseModels: useModels,
 	}
 	resp, err := s.Get(nil, req)
@@ -225,7 +225,7 @@ func TestUpdate(t *testing.T) {
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonIetfVal{
-				JsonIetfVal: []byte(`{"max-sessions-per-connection": 16}`),
+				JsonIetfVal: []byte(`{"max-sessions-per-connection": 32}`),
 			},
 		},
 		wantRetCode: codes.OK,
@@ -566,23 +566,6 @@ func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 	if gotRetStatus.Code() != tc.wantRetCode {
 		t.Fatalf("got return code %v, want %v\nerror message: %v", gotRetStatus.Code(), tc.wantRetCode, err)
 	}
-
-	//// Check server config
-	//wantConfigStruct, err := m.NewConfigStruct([]byte(tc.wantConfig))
-	//if err != nil {
-	//	t.Fatalf("wantConfig data cannot be loaded as a config struct: %v", err)
-	//}
-	//wantConfigJSON, err := ygot.ConstructIETFJSON(wantConfigStruct, &ygot.RFC7951JSONConfig{})
-	//if err != nil {
-	//	t.Fatalf("error in constructing IETF JSON tree from wanted config: %v", err)
-	//}
-	//gotConfigJSON, err := ygot.ConstructIETFJSON(s.config, &ygot.RFC7951JSONConfig{})
-	//if err != nil {
-	//	t.Fatalf("error in constructing IETF JSON tree from server config: %v", err)
-	//}
-	//if !reflect.DeepEqual(gotConfigJSON, wantConfigJSON) {
-	//	t.Fatalf("got server config %v\nwant: %v", gotConfigJSON, wantConfigJSON)
-	//}
 }
 
 func testServer(t *testing.T) (ops.OpSession, error) {

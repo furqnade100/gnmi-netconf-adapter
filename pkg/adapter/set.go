@@ -31,14 +31,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
+func (a *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
 
 	request, err := mapRequest(op, prefix, path, val)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
+	err = a.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
 	}
@@ -50,27 +50,27 @@ func (s *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.
 }
 
 // Set implements the Set RPC in gNMI spec.
-func (s *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
+func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
 
 	prefix := req.GetPrefix()
 	var results []*pb.UpdateResult
 
 	for _, path := range req.GetDelete() {
-		res, grpcStatusError := s.executeRequest(pb.UpdateResult_DELETE, prefix, path, nil)
+		res, grpcStatusError := a.executeRequest(pb.UpdateResult_DELETE, prefix, path, nil)
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
 		results = append(results, res)
 	}
 	for _, upd := range req.GetReplace() {
-		res, grpcStatusError := s.executeRequest(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
+		res, grpcStatusError := a.executeRequest(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
 		results = append(results, res)
 	}
 	for _, upd := range req.GetUpdate() {
-		res, grpcStatusError := s.executeRequest(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
+		res, grpcStatusError := a.executeRequest(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
