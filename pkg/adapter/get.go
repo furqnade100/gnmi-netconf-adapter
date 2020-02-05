@@ -21,6 +21,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,7 +41,7 @@ import (
 // Get implements the Get RPC in gNMI spec.
 func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 
-	dataType := req.GetType()
+	//dataType := req.GetType()
 
 	if err := a.checkEncodingAndModel(req.GetEncoding(), req.GetUseModels()); err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
@@ -75,9 +76,9 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 		ts := time.Now().UnixNano()
 
-		netconfMap := a.netconfToJson(result)
+		netconfMap := a.netconfToJson(result, fullPath, entry)
 
-		jsonTree, err := getTarget(netconfMap, fullPath)
+		target, err := getTarget(netconfMap, fullPath)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +86,7 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		if entry.IsLeaf() {
 			var err error
 			var val *pb.TypedValue
-			val, err = value.FromScalar(reflect.ValueOf(&jsonTree).Elem().Interface())
+			val, err = value.FromScalar(reflect.ValueOf(&target).Elem().Interface())
 			if err != nil {
 				msg := fmt.Sprintf("leaf node %v does not contain a scalar type value: %v", path, err)
 				log.Error(msg)
@@ -101,15 +102,15 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 		if entry.IsDir() {
 
-			dataTypeString := strings.ToLower(dataType.String())
-			jsonTree = pruneConfigData(jsonTree, strings.ToLower(dataTypeString), fullPath)
+			//dataTypeString := strings.ToLower(dataType.String())
+			//target := pruneConfigData(target, strings.ToLower(dataTypeString), fullPath)
 			if err != nil {
 				msg := fmt.Sprintf("error in constructing %s JSON tree from requested node: %v", "Internal", err)
 				log.Error(msg)
 				return nil, status.Error(codes.Internal, msg)
 			}
 
-			jsonDump, err := json.Marshal(jsonTree)
+			jsonDump, err := json.Marshal(target)
 			if err != nil {
 				msg := fmt.Sprintf("error in marshaling %s JSON tree to bytes: %v", "Internal", err)
 				log.Error(msg)
@@ -195,13 +196,13 @@ func getSubtreeFilterForPath(path *pb.Path) interface{} {
 	return filter
 }
 
-func (a *Adapter) netconfToJson(result string) map[string]interface{} {
+func (a *Adapter) netconfToJson(result string, path *pb.Path, entry *yang.Entry) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
 	type eldesc struct {
 		schema   *yang.Entry
 		tag      string
-		value    string
+		value    interface{}
 		children map[string]interface{}
 	}
 	top := make(map[string]interface{})
@@ -217,9 +218,7 @@ func (a *Adapter) netconfToJson(result string) map[string]interface{} {
 			case xml.StartElement:
 				var nschema *yang.Entry
 				if cureld == nil {
-
 					nschema = getChildSchema(v.Name.Local, schema)
-
 				} else {
 					stack = append(stack, cureld)
 					if cureld.schema != nil {
@@ -259,8 +258,12 @@ func (a *Adapter) netconfToJson(result string) map[string]interface{} {
 
 			case xml.CharData:
 				if cureld != nil {
-					// TODO SJ Handle data according to leaf type.
-					cureld.value = strings.TrimSpace(string(v))
+					if cureld.schema != nil {
+						if cureld.schema.IsLeaf() || cureld.schema.IsLeafList() {
+							// TODO List!
+							cureld.value = getLeafValue(v, cureld.schema)
+						}
+					}
 				}
 			default:
 				fmt.Println("Got token", tk, reflect.TypeOf(tk))
@@ -270,6 +273,25 @@ func (a *Adapter) netconfToJson(result string) map[string]interface{} {
 		}
 	}
 	return top
+}
+
+func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
+	// TODO SJ Handle data according to leaf type.
+
+	switch schema.Type.Kind {
+	case yang.Ystring:
+		return strings.TrimSpace(string(v))
+	case yang.Yunion:
+		// TODO Iterate over types
+		val, _ := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
+		return val
+	case yang.Yenum:
+		// TOOD Check what else needs done
+		return strings.TrimSpace(string(v))
+	}
+	// TODO Handle other kinds
+	fmt.Printf("Leaf kind %s still to be supported\n", schema.Type.Kind)
+	return strings.TrimSpace(string(v))
 }
 
 func getChildSchema(name string, parent *yang.Entry) *yang.Entry {

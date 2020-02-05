@@ -82,7 +82,7 @@ func TestGet(t *testing.T) {
 					elem: <name: "max-sessions-per-connection" >
 				`,
 		wantRetCode: codes.OK,
-		wantRespVal: uint64(32),
+		wantRespVal: uint64(16),
 	}, {
 		desc: "get container",
 		textPbPath: `
@@ -92,7 +92,7 @@ func TestGet(t *testing.T) {
 					elem: <name: "ssh" >
 				`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{"max-sessions-per-connection": "16"}`,
+		wantRespVal: `{"max-sessions-per-connection": 16}`,
 	}, {
 		desc: "get keyed container",
 		textPbPath: `
