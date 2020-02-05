@@ -23,34 +23,11 @@ import (
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-const (
-	// OpenconfigInterfacesModel is the openconfig YANG model for interfaces.
-	OpenconfigInterfacesModel = "openconfig-interfaces"
-	// OpenconfigOpenflowModel is the openconfig YANG model for openflow.
-	OpenconfigOpenflowModel = "openconfig-openflow"
-	// OpenconfigPlatformModel is the openconfig YANG model for platform.
-	OpenconfigPlatformModel = "openconfig-platform"
-	// OpenconfigSystemModel is the openconfig YANG model for system.
-	OpenconfigSystemModel = "openconfig-system"
-)
+const modeltype = "Junos"
+const modelversion = "19.3.1.8"
+const modulename = "junos.so.19.3.1.8"
 
-var (
-	// ModelData is a list of supported models.
-	ModelData = []*pb.ModelData{{
-		Name:         OpenconfigInterfacesModel,
-		Organization: "OpenConfig working group",
-		Version:      "2017-07-14",
-	}, {
-		Name:         OpenconfigOpenflowModel,
-		Organization: "OpenConfig working group",
-		Version:      "2017-06-01",
-	}, {
-		Name:         OpenconfigPlatformModel,
-		Organization: "OpenConfig working group",
-		Version:      "2016-12-22",
-	}, {
-		Name:         OpenconfigSystemModel,
-		Organization: "OpenConfig working group",
-		Version:      "2017-07-06",
-	}}
-)
+var ModelData = []*pb.ModelData{
+	{Name: "junos-conf-interfaces", Organization: "Juniper", Version: "2019-01-01"},
+	{Name: "junos-conf-system", Organization: "Juniper", Version: "2019-01-01"},
+}
