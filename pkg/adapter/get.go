@@ -21,6 +21,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -283,7 +284,8 @@ func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
 		return strings.TrimSpace(string(v))
 	case yang.Yunion:
 		// TODO Iterate over types
-		val, _ := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
+		val, _ := getUnionValue(strings.TrimSpace(string(v)), schema.Type.Type)
+		//val, _ := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
 		return val
 	case yang.Yenum:
 		// TOOD Check what else needs done
@@ -298,4 +300,124 @@ func getChildSchema(name string, parent *yang.Entry) *yang.Entry {
 	// Ignore any elements that are not in the schema.
 	nschema, _ := parent.Dir[name]
 	return nschema
+}
+
+func getUnionValue(v string, types []*yang.YangType) (interface{}, error) {
+	for _, t := range types {
+		switch t.Kind {
+		case yang.Ystring:
+			if isValidString(v, t) {
+				return v, nil
+			}
+		case yang.Yint32:
+			val := isValidInt(v, t)
+			if val != nil {
+				return val, nil
+			}
+		}
+	}
+	return nil, status.Errorf(codes.NotFound, "failed to set union value: %s", v)
+}
+
+func isValidString(v string, t *yang.YangType) bool {
+	if !anyPatternMatches(v, t.Pattern) {
+		return false
+	}
+	// TODO Range checks?
+	return true
+}
+
+func isValidInt(v string, t *yang.YangType) interface{} {
+	val, err := strconv.ParseInt(v, 10, 32)
+	if err != nil {
+		return nil
+	}
+
+	for _, r := range t.Range {
+		if val >= int64(r.Min.Value) && val <= int64(r.Max.Value) {
+			return val
+		}
+	}
+
+	return nil
+}
+
+func anyPatternMatches(v string, patterns []string) bool {
+	for _, p := range patterns {
+		if !patternMatches(v, p) {
+			return false
+		}
+	}
+	return true
+}
+
+func patternMatches(v string, p string) bool {
+
+	r, err := regexp.Compile(fixYangRegexp(p))
+	if err != nil {
+		return false
+	}
+	// fixYangRegexp adds ^(...)$ around the pattern - the result is
+	// equivalent to a full match of whole string.
+	return r.MatchString(v)
+}
+
+// Following function is lifted unchanged from https://github.com/openconfig/ygot/blob/master/ytypes/string_type.go
+
+// fixYangRegexp takes a pattern regular expression from a YANG module and
+// returns it into a format which can be used by the Go regular expression
+// library. YANG uses a W3C standard that is defined to be implicitly anchored
+// at the head or tail of the expression. See
+// https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/#regexs for details.
+func fixYangRegexp(pattern string) string {
+	var buf bytes.Buffer
+	var inEscape bool
+	var prevChar rune
+	addParens := false
+
+	for i, ch := range pattern {
+		if i == 0 && ch != '^' {
+			buf.WriteRune('^')
+			// Add parens around entire expression to prevent logical
+			// subexpressions associating with leading/trailing ^ / $.
+			buf.WriteRune('(')
+			addParens = true
+		}
+
+		switch ch {
+		case '$':
+			// Dollar signs need to be escaped unless they are at
+			// the end of the pattern, or are already escaped.
+			if !inEscape && i != len(pattern)-1 {
+				buf.WriteRune('\\')
+			}
+		case '^':
+			// Carets need to be escaped unless they are already
+			// escaped, indicating set negation ([^.*]) or at the
+			// start of the string.
+			if !inEscape && prevChar != '[' && i != 0 {
+				buf.WriteRune('\\')
+			}
+		}
+
+		// If the previous character was an escape character, then we
+		// leave the escape, otherwise check whether this is an escape
+		// char and if so, then enter escape.
+		inEscape = !inEscape && ch == '\\'
+
+		buf.WriteRune(ch)
+
+		if i == len(pattern)-1 {
+			if addParens {
+				buf.WriteRune(')')
+			}
+			if ch != '$' {
+				buf.WriteRune('$')
+			}
+		}
+
+		prevChar = ch
+	}
+
+	return buf.String()
 }
