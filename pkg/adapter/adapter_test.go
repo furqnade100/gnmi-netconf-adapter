@@ -97,14 +97,15 @@ func TestGet(t *testing.T) {
 		desc: "get keyed container",
 		textPbPath: `
 					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
 					elem: <
-						name: "groups"
-						key: <key: "name" value: "re1" >
+						name: "interface"
+						key: <key: "name" value: "et-0/3/0" >
 					>
-					elem: <name: "system" >
+					elem: <name: "otn-options" >
 	`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{"host-name": "habs1"}`,
+		wantRespVal: `{"rate": "otu4"}`,
 	}, {
 		desc:        "root child node",
 		textPbPath:  `elem: <name: "configuration" >`,

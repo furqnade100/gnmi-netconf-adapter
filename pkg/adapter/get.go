@@ -314,6 +314,7 @@ func getUnionValue(v string, types []*yang.YangType) (interface{}, error) {
 			if val != nil {
 				return val, nil
 			}
+			// TODO Add other kinds.
 		}
 	}
 	return nil, status.Errorf(codes.NotFound, "failed to set union value: %s", v)
