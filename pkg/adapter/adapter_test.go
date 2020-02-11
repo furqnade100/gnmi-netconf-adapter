@@ -224,8 +224,8 @@ func TestUpdate(t *testing.T) {
 			elem: <name: "ssh" >
 		`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonIetfVal{
-				JsonIetfVal: []byte(`{"max-sessions-per-connection": 32}`),
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"max-sessions-per-connection": 32}`),
 			},
 		},
 		wantRetCode: codes.OK,
@@ -327,8 +327,8 @@ func TestReplace(t *testing.T) {
 			elem: <name: "ssh" >
 		`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonIetfVal{
-				JsonIetfVal: []byte(`{"max-sessions-per-connection": 16}`),
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"max-sessions-per-connection": 16}`),
 			},
 		},
 		wantRetCode: codes.OK,
@@ -343,8 +343,8 @@ func TestReplace(t *testing.T) {
 				key: <key: "name" value: "swpri1-1-1" >
 			>`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonIetfVal{
-				JsonIetfVal: []byte(`{"config": {"name": "swpri1-1-1"}}`),
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"config": {"name": "swpri1-1-1"}}`),
 			},
 		},
 		wantRetCode: codes.OK,
@@ -395,8 +395,8 @@ func TestReplace(t *testing.T) {
 			elem: <name: "config" >
 		`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonIetfVal{
-				JsonIetfVal: []byte(`{"address": "192.0.2.10", "aux-id": 0}`),
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"address": "192.0.2.10", "aux-id": 0}`),
 			},
 		},
 		wantRetCode: codes.OK,

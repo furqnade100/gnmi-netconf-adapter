@@ -140,7 +140,7 @@ func mapValue(entry *yang.Entry, inval *pb.TypedValue) (interface{}, error) {
 	var editValue interface{}
 	if entry.IsDir() {
 		editValue = make(map[string]interface{})
-		err := json.Unmarshal(inval.GetJsonIetfVal(), &editValue)
+		err := json.Unmarshal(inval.GetJsonVal(), &editValue)
 		if err != nil {
 			return nil, status.Errorf(codes.Unknown, "invalid value %s", err)
 		}

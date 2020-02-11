@@ -77,7 +77,7 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 		ts := time.Now().UnixNano()
 
-		netconfMap := a.netconfToJson(result, fullPath, entry)
+		netconfMap := a.netconfToJson(result)
 
 		target, err := getTarget(netconfMap, fullPath)
 		if err != nil {
@@ -197,7 +197,7 @@ func getSubtreeFilterForPath(path *pb.Path) interface{} {
 	return filter
 }
 
-func (a *Adapter) netconfToJson(result string, path *pb.Path, entry *yang.Entry) map[string]interface{} {
+func (a *Adapter) netconfToJson(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
 	type eldesc struct {
