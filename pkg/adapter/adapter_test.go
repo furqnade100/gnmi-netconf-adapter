@@ -44,6 +44,7 @@ var (
 func TestGet(t *testing.T) {
 
 	ncs, err := testServer(t)
+	assert.NoError(t, err)
 	defer ncs.Close()
 
 	s, err := NewAdapter(model, ncs)
@@ -129,7 +130,7 @@ func TestGet(t *testing.T) {
 		wantRetCode: codes.NotFound,
 	}, {
 		desc:        "use of model data not supported",
-		modelData:   []*pb.ModelData{&pb.ModelData{}},
+		modelData:   []*pb.ModelData{{}},
 		wantRetCode: codes.Unimplemented,
 	}}
 

@@ -30,7 +30,6 @@ var (
 	model = adapter.NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"])
 )
 
-
 // newGnmiServer creates a new gNMI server for a model and a device instance
 func newGnmiServer(model *adapter.Model, ipAddress, username, password string) (pb.GNMIServer, error) {
 	s, err := ncDeviceSessionForDemo(ipAddress, username, password)
@@ -38,7 +37,6 @@ func newGnmiServer(model *adapter.Model, ipAddress, username, password string) (
 		return nil, err
 	}
 	return adapter.NewAdapter(model, s)
-
 }
 
 func ncDeviceSessionForDemo(ipAddress, username, password string) (ops.OpSession, error) {
@@ -47,7 +45,5 @@ func ncDeviceSessionForDemo(ipAddress, username, password string) (ops.OpSession
 		Auth:            []ssh.AuthMethod{ssh.Password(password)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-
 	return ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("%s:%d", ipAddress, 830))
-
 }

@@ -97,7 +97,7 @@ func (a *Adapter) mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path
 	for i, elem := range fullPath.Elem {
 		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
 		if i == len(fullPath.Elem)-1 {
-			startEl.Attr = []xml.Attr{xml.Attr{Name: xml.Name{Local: "operation"}, Value: mapOperation(op)}}
+			startEl.Attr = []xml.Attr{{Name: xml.Name{Local: "operation"}, Value: mapOperation(op)}}
 		}
 		_ = enc.EncodeToken(startEl)
 		for k, v := range elem.Key {
@@ -118,7 +118,7 @@ func (a *Adapter) mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path
 			return nil, err
 		}
 		if entry.IsDir() {
-			_ = jsonToXml(editValue.(map[string]interface{}), enc)
+			_ = jsonToXML(editValue.(map[string]interface{}), enc)
 		} else {
 			_ = enc.EncodeToken(xml.CharData(fmt.Sprintf("%v", editValue)))
 		}
@@ -169,7 +169,7 @@ func mapOperation(op pb.UpdateResult_Operation) string {
 	return opdesc
 }
 
-func jsonToXml(input map[string]interface{}, enc *xml.Encoder) error {
+func jsonToXML(input map[string]interface{}, enc *xml.Encoder) error {
 	for k, v := range input {
 		err := enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
 		if err != nil {
@@ -177,7 +177,7 @@ func jsonToXml(input map[string]interface{}, enc *xml.Encoder) error {
 		}
 		switch val := v.(type) {
 		case map[string]interface{}:
-			err = jsonToXml(val, enc)
+			err = jsonToXML(val, enc)
 			if err != nil {
 				return err
 			}

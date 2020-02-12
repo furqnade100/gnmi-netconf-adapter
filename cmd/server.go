@@ -17,6 +17,7 @@ package cmd
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	log "github.com/golang/glog"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/spf13/cobra"
@@ -34,11 +35,10 @@ var (
 	cert       *string
 	isInsecure *bool
 	port       *int
-	// The initial prototype only supports one device per adapter
-	deviceIp       *string
+	// The initial prototype only supports one device per adapter instance
+	deviceIP       *string
 	deviceUsername *string
 	devicePassword *string
-
 )
 
 // serverCmd represents the server command
@@ -56,7 +56,7 @@ func init() {
 	port = serverCmd.Flags().Int("port", 10999, "port to listen")
 	isInsecure = serverCmd.Flags().Bool("insecure", false, "whether to enable skip verification")
 
-	deviceIp = serverCmd.Flags().String("device-ip", "10.228.63.5", "device ip address for NETCONF")
+	deviceIP = serverCmd.Flags().String("device-ip", "10.228.63.5", "device ip address for NETCONF")
 	deviceUsername = serverCmd.Flags().String("device-user", "", "device NETCONF username")
 	devicePassword = serverCmd.Flags().String("device-pass", "", "device NETCONF password")
 
@@ -67,11 +67,11 @@ func init() {
 // RunGnmiServer provides an indirection so that the logic can be tested independently of the cobra infrastructure
 func RunGnmiServer(command *cobra.Command, args []string) {
 	log.Info("Run GNMI Server... ")
-	err := Serve(func(started string) {
-		log.Info("Started listener on ", started)
+	err := Serve(func(startedMsg string) {
+		log.Info(startedMsg)
 	})
 
-	log.Error("Error running Serve", err)
+	log.Exitf("Error running Serve %v", err)
 
 }
 
@@ -99,15 +99,16 @@ func Serve(started func(string)) error {
 	opts := []grpc.ServerOption{grpc.Creds(grpccredentials.NewTLS(tlsCfg))}
 	grpcServer := grpc.NewServer(opts...)
 
-	s, err := newGnmiServer(model, *deviceIp, *deviceUsername, *devicePassword)
+	s, err := newGnmiServer(model, *deviceIP, *deviceUsername, *devicePassword)
 	if err != nil {
-		log.Fatal("newGnmiServer error ", err)
+		return err
 	}
 
 	pb.RegisterGNMIServer(grpcServer, s)
 	reflection.Register(grpcServer)
 
-	started(lis.Addr().String())
+	message := fmt.Sprintf("Listening on %s with session opened to NETCONF device at %s", lis.Addr(), *deviceIP)
+	started(message)
 	return grpcServer.Serve(lis)
 }
 

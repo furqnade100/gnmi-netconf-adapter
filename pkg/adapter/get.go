@@ -75,7 +75,7 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		}
 		ts := time.Now().UnixNano()
 
-		netconfMap := a.netconfToJson(result)
+		netconfMap := a.netconfToJSON(result)
 
 		target, err := getTarget(netconfMap, fullPath)
 		if err != nil {
@@ -192,7 +192,7 @@ func getSubtreeFilterForPath(path *pb.Path) interface{} {
 	return filter
 }
 
-func (a *Adapter) netconfToJson(result string) map[string]interface{} {
+func (a *Adapter) netconfToJSON(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
 	type eldesc struct {
@@ -283,7 +283,7 @@ func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
 		//val, _ := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
 		return val
 	case yang.Yenum:
-		// TOOD Check what else needs done
+		// TODO Check what else needs done
 		return strings.TrimSpace(string(v))
 	}
 	// TODO Handle other kinds
@@ -293,8 +293,7 @@ func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
 
 func getChildSchema(name string, parent *yang.Entry) *yang.Entry {
 	// Ignore any elements that are not in the schema.
-	nschema, _ := parent.Dir[name]
-	return nschema
+	return parent.Dir[name]
 }
 
 func getUnionValue(v string, types []*yang.YangType) (interface{}, error) {
