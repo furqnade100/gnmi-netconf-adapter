@@ -28,5 +28,12 @@ type GoStructEnumData map[string]map[int64]ygot.EnumDefinition
 type Model struct {
 	modelData      []*pb.ModelData
 	schemaTreeRoot *yang.Entry
-	enumData       GoStructEnumData
+}
+
+// NewModel returns an instance of Model struct.
+func NewModel(m []*pb.ModelData, r *yang.Entry) *Model {
+	return &Model{
+		modelData:      m,
+		schemaTreeRoot: r,
+	}
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	dpb "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // getGNMIServiceVersion returns a pointer to the gNMI service version string.
@@ -91,11 +90,6 @@ func (a *Adapter) checkEncodingAndModel(encoding pb.Encoding, models []*pb.Model
 		}
 	}
 	return nil
-}
-
-// GetConfig returns the config store
-func (a *Adapter) GetConfig() (ygot.ValidatedGoStruct, error) {
-	return a.config, nil
 }
 
 // Contains checks the existance of a given string in an array of strings.

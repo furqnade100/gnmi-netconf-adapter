@@ -31,27 +31,19 @@ var (
 	dataTypes          = []string{"config", "state", "operational", "all"}
 )
 
-// Adapter struct maintains the data structure for device config and implements the interface of gnmi server. It supports Capabilities, Get, and Set APIs.
+// Adapter struct implements the interface of gnmi server. It supports Capabilities, Get, and Set APIs.
 // Typical usage:
-//	g := grpc.NewAdapter()
-//	s, err := Adapter.NewAdapter(model, config, callback)
-//	pb.NewAdapter(g, s)
+//  netconfSession, err := ops.NewSession(ctx, sshConfig, "10.228.63.5:830")
+//	g := grpc.NewServer()
+//	s, err := gnmi.NewAdapter(model, netconfSession)
+//	pb.NewServer(g, s)
 //	reflection.Register(g)
 //	listen, err := net.Listen("tcp", ":8080")
 //	g.Serve(listen)
 //
-// For a real device, apply the config changes to the hardware in the callback function.
-// Arguments:
-//		newConfig: new root config to be applied on the device.
-// func callback(newConfig ygot.ValidatedGoStruct) error {
-//		// Apply the config to your device and return nil if success. return error if fails.
-//		//
-//		// Do something ...
-// }
 type Adapter struct {
-	model  *Model
-	ncs    ops.OpSession
-	config ygot.ValidatedGoStruct
+	model *Model
+	ncs   ops.OpSession
 }
 
 var (

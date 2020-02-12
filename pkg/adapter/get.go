@@ -42,8 +42,6 @@ import (
 // Get implements the Get RPC in gNMI spec.
 func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 
-	//dataType := req.GetType()
-
 	if err := a.checkEncodingAndModel(req.GetEncoding(), req.GetUseModels()); err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
@@ -102,9 +100,6 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 			continue
 		}
 		if entry.IsDir() {
-
-			//dataTypeString := strings.ToLower(dataType.String())
-			//target := pruneConfigData(target, strings.ToLower(dataTypeString), fullPath)
 			if err != nil {
 				msg := fmt.Sprintf("error in constructing %s JSON tree from requested node: %v", "Internal", err)
 				log.Error(msg)
