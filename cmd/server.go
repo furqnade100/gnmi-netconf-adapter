@@ -29,11 +29,16 @@ import (
 )
 
 var (
-	myca         *string
-	mykey        *string
-	mycert       *string
-	myIsInsecure *bool
-	myport       *int
+	ca         *string
+	key        *string
+	cert       *string
+	isInsecure *bool
+	port       *int
+	// The initial prototype only supports one device per adapter
+	deviceIp       *string
+	deviceUsername *string
+	devicePassword *string
+
 )
 
 // serverCmd represents the server command
@@ -45,11 +50,15 @@ var serverCmd = &cobra.Command{
 
 func init() {
 
-	myca = serverCmd.Flags().String("ca", "", "path to CA certificate")
-	mykey = serverCmd.Flags().String("key", "", "path to client private key")
-	mycert = serverCmd.Flags().String("cert", "", "path to client certificate")
-	myport = serverCmd.Flags().Int("port", 10999, "port to listen")
-	myIsInsecure = serverCmd.Flags().Bool("insecure", false, "whether to enable skip verification")
+	ca = serverCmd.Flags().String("ca", "", "path to CA certificate")
+	key = serverCmd.Flags().String("key", "", "path to client private key")
+	cert = serverCmd.Flags().String("cert", "", "path to client certificate")
+	port = serverCmd.Flags().Int("port", 10999, "port to listen")
+	isInsecure = serverCmd.Flags().Bool("insecure", false, "whether to enable skip verification")
+
+	deviceIp = serverCmd.Flags().String("device-ip", "10.228.63.5", "device ip address for NETCONF")
+	deviceUsername = serverCmd.Flags().String("device-user", "", "device NETCONF username")
+	devicePassword = serverCmd.Flags().String("device-pass", "", "device NETCONF password")
 
 	rootCmd.AddCommand(serverCmd)
 
@@ -68,20 +77,20 @@ func RunGnmiServer(command *cobra.Command, args []string) {
 
 // Serve starts the NB gNMI server.
 func Serve(started func(string)) error {
-	lis, err := net.Listen("tcp", ":"+strconv.Itoa(*myport))
+	lis, err := net.Listen("tcp", ":"+strconv.Itoa(*port))
 	if err != nil {
 		return err
 	}
 
 	tlsCfg := &tls.Config{}
-	clientCerts, err := tls.LoadX509KeyPair(*mycert, *mykey)
+	clientCerts, err := tls.LoadX509KeyPair(*cert, *key)
 	if err != nil {
 		log.Info("Error loading certs", clientCerts, err)
 	}
 	tlsCfg.Certificates = []tls.Certificate{clientCerts}
 	tlsCfg.ClientAuth = tls.RequireAndVerifyClientCert
-	tlsCfg.ClientCAs = getCertPool(*myca)
-	if *myIsInsecure {
+	tlsCfg.ClientCAs = getCertPool(*ca)
+	if *isInsecure {
 		tlsCfg.ClientAuth = tls.RequestClientCert
 	} else {
 		tlsCfg.ClientAuth = tls.RequireAndVerifyClientCert
@@ -90,7 +99,7 @@ func Serve(started func(string)) error {
 	opts := []grpc.ServerOption{grpc.Creds(grpccredentials.NewTLS(tlsCfg))}
 	grpcServer := grpc.NewServer(opts...)
 
-	s, err := newGnmiServer(model)
+	s, err := newGnmiServer(model, *deviceIp, *deviceUsername, *devicePassword)
 	if err != nil {
 		log.Fatal("newGnmiServer error ", err)
 	}

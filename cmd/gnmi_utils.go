@@ -31,9 +31,9 @@ var (
 )
 
 
-// newGnmiServer creates a new gNMI server.
-func newGnmiServer(model *adapter.Model) (pb.GNMIServer, error) {
-	s, err := ncDeviceSessionForDemo()
+// newGnmiServer creates a new gNMI server for a model and a device instance
+func newGnmiServer(model *adapter.Model, ipAddress, username, password string) (pb.GNMIServer, error) {
+	s, err := ncDeviceSessionForDemo(ipAddress, username, password)
 	if err != nil {
 		return nil, err
 	}
@@ -41,13 +41,13 @@ func newGnmiServer(model *adapter.Model) (pb.GNMIServer, error) {
 
 }
 
-func ncDeviceSessionForDemo() (ops.OpSession, error) {
+func ncDeviceSessionForDemo(ipAddress, username, password string) (ops.OpSession, error) {
 	sshConfig := &ssh.ClientConfig{
-		User:            "r......",
-		Auth:            []ssh.AuthMethod{ssh.Password("M......")},
+		User:            username,
+		Auth:            []ssh.AuthMethod{ssh.Password(password)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	return ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("10.228.63.5:%d", 830))
+	return ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("%s:%d", ipAddress, 830))
 
 }
