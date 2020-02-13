@@ -128,17 +128,17 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 }
 
 func getTarget(mapin map[string]interface{}, path *pb.Path) (interface{}, error) {
-	var value interface{} = mapin
+	var val interface{} = mapin
 	for i, elem := range path.Elem {
 		ok := false
 		var nextmap map[string]interface{}
-		switch v := value.(type) {
+		switch v := val.(type) {
 		case map[string]interface{}:
 			nextmap = v
 		case []interface{}:
 			nextmap = v[0].(map[string]interface{})
 		}
-		value, ok = nextmap[elem.Name]
+		val, ok = nextmap[elem.Name]
 		if !ok {
 			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)
 		}
@@ -147,7 +147,7 @@ func getTarget(mapin map[string]interface{}, path *pb.Path) (interface{}, error)
 		}
 
 	}
-	return value, nil
+	return val, nil
 }
 
 func (a *Adapter) getSchemaEntryForPath(path *pb.Path) *yang.Entry {
@@ -202,7 +202,7 @@ func (a *Adapter) netconfToJSON(result string) map[string]interface{} {
 		children map[string]interface{}
 	}
 	top := make(map[string]interface{})
-	stack := []*eldesc{}
+	var stack []*eldesc
 	var cureld *eldesc
 
 	schema := a.model.schemaTreeRoot
@@ -234,19 +234,19 @@ func (a *Adapter) netconfToJSON(result string) map[string]interface{} {
 					}
 					isList := preveld.schema.IsList()
 
-					var value interface{}
+					var val interface{}
 					if len(preveld.children) > 0 {
-						value = preveld.children
+						val = preveld.children
 					} else {
-						value = preveld.value
+						val = preveld.value
 					}
 					if isList {
 						if _, ok := cureld.children[preveld.tag]; !ok {
 							cureld.children[preveld.tag] = []interface{}{}
 						}
-						cureld.children[preveld.tag] = append(cureld.children[preveld.tag].([]interface{}), value)
+						cureld.children[preveld.tag] = append(cureld.children[preveld.tag].([]interface{}), val)
 					} else {
-						cureld.children[preveld.tag] = value
+						cureld.children[preveld.tag] = val
 					}
 				} else {
 					top[cureld.tag] = cureld.children

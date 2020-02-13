@@ -154,7 +154,7 @@ func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.C
 		Encoding:  pb.Encoding_JSON,
 		UseModels: useModels,
 	}
-	resp, err := s.Get(nil, req)
+	resp, err := s.Get(context.TODO(), req)
 
 	// Check return code
 	gotRetStatus, ok := status.FromError(err)
@@ -265,7 +265,8 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf("error in creating server: %v", err)
 	}
 
-	for _, tc := range tests {
+	for i := range tests {
+		tc := tests[i]
 		t.Run(tc.desc, func(t *testing.T) {
 			runTestSet(t, s, model, tc)
 		})
@@ -305,7 +306,8 @@ func TestDelete(t *testing.T) {
 		t.Fatalf("error in creating server: %v", err)
 	}
 
-	for _, tc := range tests {
+	for i := range tests {
+		tc := tests[i]
 		t.Run(tc.desc, func(t *testing.T) {
 			runTestSet(t, s, model, tc)
 		})
@@ -528,7 +530,8 @@ func TestReplace(t *testing.T) {
 		t.Fatalf("error in creating server: %v", err)
 	}
 
-	for _, tc := range tests {
+	for i := range tests {
+		tc := tests[i]
 		t.Run(tc.desc, func(t *testing.T) {
 			runTestSet(t, s, model, tc)
 		})
@@ -553,7 +556,7 @@ func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 	default:
 		t.Fatalf("invalid op type: %v", tc.op)
 	}
-	_, err := s.Set(nil, req)
+	_, err := s.Set(context.TODO(), req)
 
 	// Check return code
 	gotRetStatus, ok := status.FromError(err)

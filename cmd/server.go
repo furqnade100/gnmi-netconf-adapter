@@ -62,6 +62,11 @@ func init() {
 	deviceUsername = serverCmd.Flags().String("device-user", "", "device NETCONF username")
 	devicePassword = serverCmd.Flags().String("device-pass", "", "device NETCONF password")
 
+	setupKlog()
+	rootCmd.AddCommand(serverCmd)
+}
+
+func setupKlog() {
 	// Refer https://github.com/onosproject/onos-config/issues/393
 	//
 	// https://github.com/kubernetes/klog/blob/master/examples/coexist_glog/coexist_glog.go
@@ -73,10 +78,8 @@ func init() {
 		log.Error("Cant' avoid double Error logging ", err)
 	}
 	flag.Parse()
-
 	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
 	log.InitFlags(klogFlags)
-
 	// Sync the glog and klog flags.
 	flag.CommandLine.VisitAll(func(f1 *flag.Flag) {
 		f2 := klogFlags.Lookup(f1.Name)
@@ -85,9 +88,6 @@ func init() {
 			_ = f2.Value.Set(value)
 		}
 	})
-
-	rootCmd.AddCommand(serverCmd)
-
 }
 
 // RunGnmiServer provides an indirection so that the logic can be tested independently of the cobra infrastructure
