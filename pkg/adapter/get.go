@@ -32,11 +32,11 @@ import (
 
 	"github.com/damianoneill/net/v2/netconf/ops"
 
-	log "github.com/golang/glog"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	log "k8s.io/klog"
 )
 
 // Get implements the Get RPC in gNMI spec.

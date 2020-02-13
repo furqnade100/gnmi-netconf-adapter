@@ -17,17 +17,18 @@ package cmd
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"strconv"
 
-	log "github.com/golang/glog"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	log "k8s.io/klog"
 )
 
 var (
@@ -60,6 +61,30 @@ func init() {
 	deviceIP = serverCmd.Flags().String("device-ip", "10.228.63.5:830", "device ip address:port for NETCONF")
 	deviceUsername = serverCmd.Flags().String("device-user", "", "device NETCONF username")
 	devicePassword = serverCmd.Flags().String("device-pass", "", "device NETCONF password")
+
+	// Refer https://github.com/onosproject/onos-config/issues/393
+	//
+	// https://github.com/kubernetes/klog/blob/master/examples/coexist_glog/coexist_glog.go
+	// because of libraries importing glog. With glog import we can't call log.InitFlags(nil) as per klog readme
+	// thus the alsologtostderr is not set properly and we issue multiple logs.
+	// Calling log.InitFlags(nil) throws panic with error `flag redefined: log_dir`
+	err := flag.Set("alsologtostderr", "true")
+	if err != nil {
+		log.Error("Cant' avoid double Error logging ", err)
+	}
+	flag.Parse()
+
+	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
+	log.InitFlags(klogFlags)
+
+	// Sync the glog and klog flags.
+	flag.CommandLine.VisitAll(func(f1 *flag.Flag) {
+		f2 := klogFlags.Lookup(f1.Name)
+		if f2 != nil {
+			value := f1.Value.String()
+			_ = f2.Value.Set(value)
+		}
+	})
 
 	rootCmd.AddCommand(serverCmd)
 
