@@ -18,15 +18,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"strconv"
+
 	log "github.com/golang/glog"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
-	"io/ioutil"
-	"net"
-	"strconv"
 )
 
 var (
@@ -56,7 +57,7 @@ func init() {
 	port = serverCmd.Flags().Int("port", 10999, "port to listen")
 	isInsecure = serverCmd.Flags().Bool("insecure", false, "whether to enable skip verification")
 
-	deviceIP = serverCmd.Flags().String("device-ip", "10.228.63.5", "device ip address for NETCONF")
+	deviceIP = serverCmd.Flags().String("device-ip", "10.228.63.5:830", "device ip address:port for NETCONF")
 	deviceUsername = serverCmd.Flags().String("device-user", "", "device NETCONF username")
 	devicePassword = serverCmd.Flags().String("device-pass", "", "device NETCONF password")
 

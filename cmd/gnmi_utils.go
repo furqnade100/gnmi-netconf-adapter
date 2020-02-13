@@ -17,6 +17,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/damianoneill/net/v2/netconf/ops"
 	adapter "github.com/onosproject/gnmi-netconf-adapter/pkg/adapter"
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
@@ -45,5 +47,8 @@ func ncDeviceSessionForDemo(ipAddress, username, password string) (ops.OpSession
 		Auth:            []ssh.AuthMethod{ssh.Password(password)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	return ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("%s:%d", ipAddress, 830))
+	if !strings.Contains(ipAddress, ":") {
+		ipAddress = fmt.Sprintf("%s:%d", ipAddress, 830)
+	}
+	return ops.NewSession(context.Background(), sshConfig, ipAddress)
 }
