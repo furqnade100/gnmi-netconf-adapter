@@ -52,7 +52,7 @@ func TestGet(t *testing.T) {
 		t.Fatalf("error in creating server: %v", err)
 	}
 
-	tds := []struct {
+	tests := []struct {
 		desc        string
 		textPbPath  string
 		modelData   []*pb.ModelData
@@ -134,7 +134,8 @@ func TestGet(t *testing.T) {
 		wantRetCode: codes.Unimplemented,
 	}}
 
-	for _, td := range tds {
+	for i := range tests {
+		td := tests[i]
 		t.Run(td.desc, func(t *testing.T) {
 			runTestGet(t, s, td.textPbPath, td.wantRetCode, td.wantRespVal, td.modelData)
 		})
