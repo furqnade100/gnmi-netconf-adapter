@@ -52,9 +52,11 @@ var serverCmd = &cobra.Command{
 
 func init() {
 
-	ca = serverCmd.Flags().String("ca", "", "path to CA certificate")
-	key = serverCmd.Flags().String("key", "", "path to client private key")
-	cert = serverCmd.Flags().String("cert", "", "path to client certificate")
+	// default paths to certs and key match the relative locations in docker image
+	ca = serverCmd.Flags().String("ca", "certs/onfca.crt", "path to CA certificate")
+	key = serverCmd.Flags().String("key", "certs/localhost.key", "path to client private key")
+	cert = serverCmd.Flags().String("cert", "certs/localhost.crt", "path to client certificate")
+
 	port = serverCmd.Flags().Int("port", 10999, "port to listen")
 	isInsecure = serverCmd.Flags().Bool("insecure", false, "whether to enable skip verification")
 
