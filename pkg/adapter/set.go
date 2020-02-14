@@ -17,6 +17,7 @@ package gnmi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -26,14 +27,53 @@ import (
 	"github.com/damianoneill/net/v2/netconf/ops"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmi/value"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (a *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
+// Set implements the Set RPC in gNMI spec.
+func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
 
-	request, err := a.mapRequest(op, prefix, path, val)
+	prefix := req.GetPrefix()
+	var results []*pb.UpdateResult
+
+	// Execute Deletes
+	for _, path := range req.GetDelete() {
+		res, grpcStatusError := a.executeOperation(pb.UpdateResult_DELETE, prefix, path, nil)
+		if grpcStatusError != nil {
+			return nil, grpcStatusError
+		}
+		results = append(results, res)
+	}
+
+	// Execute Replaces
+	for _, upd := range req.GetReplace() {
+		res, grpcStatusError := a.executeOperation(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
+		if grpcStatusError != nil {
+			return nil, grpcStatusError
+		}
+		results = append(results, res)
+	}
+
+	// Execute Updates
+	for _, upd := range req.GetUpdate() {
+		res, grpcStatusError := a.executeOperation(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
+		if grpcStatusError != nil {
+			return nil, grpcStatusError
+		}
+		results = append(results, res)
+	}
+
+	return &pb.SetResponse{
+		Prefix:   prefix,
+		Response: results,
+	}, nil
+}
+
+// executeOperation executes a gNMI Set operation mapping it to a netconf edit-config operation.
+func (a *Adapter) executeOperation(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
+
+	request, err := a.gnmiToNetconfOperation(op, prefix, path, val)
 	if err != nil {
 		return nil, err
 	}
@@ -49,93 +89,84 @@ func (a *Adapter) executeRequest(op pb.UpdateResult_Operation, prefix, path *pb.
 	}, nil
 }
 
-// Set implements the Set RPC in gNMI spec.
-func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
-
-	prefix := req.GetPrefix()
-	var results []*pb.UpdateResult
-
-	for _, path := range req.GetDelete() {
-		res, grpcStatusError := a.executeRequest(pb.UpdateResult_DELETE, prefix, path, nil)
-		if grpcStatusError != nil {
-			return nil, grpcStatusError
-		}
-		results = append(results, res)
-	}
-	for _, upd := range req.GetReplace() {
-		res, grpcStatusError := a.executeRequest(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
-		if grpcStatusError != nil {
-			return nil, grpcStatusError
-		}
-		results = append(results, res)
-	}
-	for _, upd := range req.GetUpdate() {
-		res, grpcStatusError := a.executeRequest(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
-		if grpcStatusError != nil {
-			return nil, grpcStatusError
-		}
-		results = append(results, res)
-	}
-
-	setResponse := &pb.SetResponse{
-		Prefix:   req.GetPrefix(),
-		Response: results,
-	}
-
-	return setResponse, nil
-}
-
-func (a *Adapter) mapRequest(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.TypedValue) (interface{}, error) {
+// gnmiToNetconfOperation maps a gNMI set operation to a netconfig edit-config operation.
+func (a *Adapter) gnmiToNetconfOperation(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.TypedValue) (interface{}, error) {
 
 	fullPath := path
 	if prefix != nil {
 		fullPath = gnmiFullPath(prefix, path)
 	}
 
-	var b2 bytes.Buffer
-	enc := xml.NewEncoder(&b2)
-	for i, elem := range fullPath.Elem {
-		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
-		if i == len(fullPath.Elem)-1 {
-			startEl.Attr = []xml.Attr{{Name: xml.Name{Local: "operation"}, Value: mapOperation(op)}}
-		}
-		_ = enc.EncodeToken(startEl)
-		for k, v := range elem.Key {
-			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
-			_ = enc.EncodeToken(xml.CharData(v))
-			_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: k}})
-		}
+	entry := a.getSchemaEntryForPath(fullPath)
+	if entry == nil {
+		return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
 	}
 
-	if op != pb.UpdateResult_DELETE {
-		entry := a.getSchemaEntryForPath(fullPath)
-		if entry == nil {
-			return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
-		}
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
 
-		editValue, err := mapValue(entry, inval)
+	mapPathToNetconf(fullPath, op, enc)
+
+	if op != pb.UpdateResult_DELETE {
+		err := a.mapSetValueToNetconf(enc, entry, inval)
 		if err != nil {
 			return nil, err
 		}
-		if entry.IsDir() {
-			_ = jsonToXML(editValue.(map[string]interface{}), enc)
-		} else {
-			_ = enc.EncodeToken(xml.CharData(fmt.Sprintf("%v", editValue)))
-		}
 	}
 
+	// Close off the XML elements defined by the path.
 	for i := len(fullPath.Elem) - 1; i >= 0; i-- {
 		_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: fullPath.Elem[i].Name}})
 	}
 
+	// Return the XML document.
 	_ = enc.Flush()
-	filter := b2.String()
+	filter := buf.String()
 	if len(filter) == 0 {
 		return nil, nil
 	}
 	return filter, nil
 }
 
+// mapPathToNetconf converts a path for a gNMI Set operation to a netconf XML document using the supplied encoder.
+func mapPathToNetconf(fullPath *pb.Path, op pb.UpdateResult_Operation, enc *xml.Encoder) {
+	for i, elem := range fullPath.Elem {
+		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
+
+		// Add the relevant operation attribute in the last element of the path.
+		if i == len(fullPath.Elem)-1 {
+			startEl.Attr = []xml.Attr{{Name: xml.Name{Local: "operation"}, Value: mapOperation(op)}}
+		}
+		_ = enc.EncodeToken(startEl)
+
+		// Add in any key values.
+		for k, v := range elem.Key {
+			_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
+			_ = enc.EncodeToken(xml.CharData(v))
+			_ = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: k}})
+		}
+	}
+}
+
+// mapSetValueToNetconf converts a value defined by a Set update/replace operation to the corresponding
+// netconf XML elements, using the specified encoder.
+func (a *Adapter) mapSetValueToNetconf(enc *xml.Encoder, schema *yang.Entry, inval *pb.TypedValue) error {
+
+	editValue, err := mapValue(schema, inval)
+	if err != nil {
+		return err
+	}
+	if schema.IsDir() {
+		_ = jsonMapToXML(editValue.(map[string]interface{}), enc)
+	} else {
+		_ = enc.EncodeToken(xml.CharData(fmt.Sprintf("%v", editValue)))
+	}
+	return nil
+}
+
+// Convert the value supplied on a Set operation, delivering:
+// - a map for a container
+// - scalar value for a leaf.
 func mapValue(entry *yang.Entry, inval *pb.TypedValue) (interface{}, error) {
 	var editValue interface{}
 	if entry.IsDir() {
@@ -169,7 +200,8 @@ func mapOperation(op pb.UpdateResult_Operation) string {
 	return opdesc
 }
 
-func jsonToXML(input map[string]interface{}, enc *xml.Encoder) error {
+// Converts a map generated from a JSON value supplied on a Set operation to XML, using the supplied encoder.
+func jsonMapToXML(input map[string]interface{}, enc *xml.Encoder) error {
 	for k, v := range input {
 		err := enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
 		if err != nil {
@@ -177,7 +209,7 @@ func jsonToXML(input map[string]interface{}, enc *xml.Encoder) error {
 		}
 		switch val := v.(type) {
 		case map[string]interface{}:
-			err = jsonToXML(val, enc)
+			err = jsonMapToXML(val, enc)
 			if err != nil {
 				return err
 			}
