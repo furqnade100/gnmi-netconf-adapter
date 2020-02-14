@@ -36,7 +36,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	log "k8s.io/klog"
 )
 
 // Get implements the Get RPC in gNMI spec.
@@ -46,127 +45,55 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
-	prefix := req.GetPrefix()
 	paths := req.GetPath()
 	notifications := make([]*pb.Notification, len(paths))
 
 	for i, path := range paths {
-		// Get schema node for path from config struct.
-		fullPath := path
-		if prefix != nil {
-			fullPath = gnmiFullPath(prefix, path)
-		}
-
-		entry := a.getSchemaEntryForPath(fullPath)
-		if entry == nil {
-			return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
-		}
-
-		filter := getSubtreeFilterForPath(fullPath)
-
-		result := ""
-		err := a.ncs.GetConfigSubtree(filter, ops.CandidateCfg, &result)
-		if err != nil {
-			return nil, status.Errorf(codes.Unknown, "Failed to get config for %v %v", fullPath, err)
-		}
-		ts := time.Now().UnixNano()
-
-		netconfMap := a.netconfToJSON(result)
-
-		target, err := getTarget(netconfMap, fullPath)
+		n, err := a.processPath(ctx, req, path)
 		if err != nil {
 			return nil, err
 		}
-
-		if entry.IsLeaf() {
-			var err error
-			var val *pb.TypedValue
-			val, err = value.FromScalar(reflect.ValueOf(&target).Elem().Interface())
-			if err != nil {
-				msg := fmt.Sprintf("leaf node %v does not contain a scalar type value: %v", path, err)
-				log.Error(msg)
-				return nil, status.Error(codes.Internal, msg)
-			}
-			update := &pb.Update{Path: path, Val: val}
-			notifications[i] = &pb.Notification{
-				Timestamp: ts,
-				Prefix:    prefix,
-				Update:    []*pb.Update{update},
-			}
-			continue
-		}
-		if entry.IsDir() {
-			if err != nil {
-				msg := fmt.Sprintf("error in constructing %s JSON tree from requested node: %v", "Internal", err)
-				log.Error(msg)
-				return nil, status.Error(codes.Internal, msg)
-			}
-
-			jsonDump, err := json.Marshal(target)
-			if err != nil {
-				msg := fmt.Sprintf("error in marshaling %s JSON tree to bytes: %v", "Internal", err)
-				log.Error(msg)
-				return nil, status.Error(codes.Internal, msg)
-			}
-
-			update := buildUpdate(jsonDump, path, "Internal")
-			notifications[i] = &pb.Notification{
-				Timestamp: ts,
-				Prefix:    prefix,
-				Update:    []*pb.Update{update},
-			}
-			continue
-		}
+		notifications[i] = n
 	}
-	resp := &pb.GetResponse{Notification: notifications}
 
-	return resp, nil
+	return &pb.GetResponse{Notification: notifications}, nil
 }
 
-func getTarget(mapin map[string]interface{}, path *pb.Path) (interface{}, error) {
-	var val interface{} = mapin
-	for i, elem := range path.Elem {
-		ok := false
-		var nextmap map[string]interface{}
-		switch v := val.(type) {
-		case map[string]interface{}:
-			nextmap = v
-		case []interface{}:
-			nextmap = v[0].(map[string]interface{})
-		}
-		val, ok = nextmap[elem.Name]
-		if !ok {
-			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)
-		}
-		if i == len(path.Elem)-1 {
-			break
-		}
+// Exexcutes a gNMI Get for a single path
+func (a *Adapter) processPath(ctx context.Context, req *pb.GetRequest, path *pb.Path) (*pb.Notification, error) {
 
+	// Resolve the full path using the prefix if there is one.
+	prefix := req.GetPrefix()
+	fullPath := path
+	if prefix != nil {
+		fullPath = gnmiFullPath(prefix, path)
 	}
-	return val, nil
+
+	// Check that the requested path is defined in the schema
+	entry := a.getSchemaEntryForPath(fullPath)
+	if entry == nil {
+		return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
+	}
+
+	// Convert the request path to a netconf subtree filter and execute a get-config.
+	netconfTree, err := a.executeGetConfig(pathToNetconfSubtree(fullPath), fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the netconf response to a gNMI notification
+	return a.netconfValueToGnmi(entry, netconfTree, path, prefix)
 }
 
-func (a *Adapter) getSchemaEntryForPath(path *pb.Path) *yang.Entry {
-	rootEntry := a.model.schemaTreeRoot
-	if path.Elem == nil {
-		return rootEntry
+// pathToNetconfSubtree converts a gNMI path to an XML string holding an equivalent netconf subtree filter.
+// If there are no elements in the path, nil is returned (meaning the complete tree is returned).
+func pathToNetconfSubtree(path *pb.Path) interface{} {
+
+	if len(path.Elem) == 0 {
+		return nil
 	}
-
-	entry := rootEntry
-	for _, elem := range path.Elem {
-		next, ok := entry.Dir[elem.Name]
-		if !ok {
-			return nil
-		}
-		entry = next
-	}
-	return entry
-}
-
-func getSubtreeFilterForPath(path *pb.Path) interface{} {
-
-	var b2 bytes.Buffer
-	enc := xml.NewEncoder(&b2)
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
 	for _, elem := range path.Elem {
 		_ = enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: elem.Name}})
 		for k, v := range elem.Key {
@@ -181,14 +108,34 @@ func getSubtreeFilterForPath(path *pb.Path) interface{} {
 	}
 
 	_ = enc.Flush()
-	filter := b2.String()
-	if len(filter) == 0 {
-		return nil
-	}
-	return filter
+	return buf.String()
 }
 
-func (a *Adapter) netconfToJSON(result string) map[string]interface{} {
+// executeGetConfig issues a netconfig get-config request using the specified subtree filter, returning the
+// response as an XML string.
+func (a *Adapter) executeGetConfig(filter interface{}, path *pb.Path) (string, error) {
+	result := ""
+	err := a.ncs.GetConfigSubtree(filter, ops.RunningCfg, &result)
+	if err != nil {
+		return "", status.Errorf(codes.Unknown, "failed to get config for %v %v", path, err)
+	}
+	return result, nil
+}
+
+// netconfValueToGnmi converts the netconf XML response to a gNMI notification.
+func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
+
+	netconfMap := a.netconfXMLtoMap(result)
+
+	requestedValue, err := getRequestedNode(netconfMap, path)
+	if err != nil {
+		return nil, err
+	}
+	return a.buildGnmiNotification(entry, requestedValue, path, prefix)
+}
+
+// netconfXMLtoMap converts a netconf XML response to a map.
+func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
 	type eldesc struct {
@@ -265,6 +212,78 @@ func (a *Adapter) netconfToJSON(result string) map[string]interface{} {
 		}
 	}
 	return top
+}
+
+func (a *Adapter) buildGnmiNotification(entry *yang.Entry, requestedValue interface{}, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
+
+	if entry.IsLeaf() {
+		var err error
+		var val *pb.TypedValue
+		val, err = value.FromScalar(reflect.ValueOf(&requestedValue).Elem().Interface())
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("leaf node %v does not contain a scalar type value: %v", path, err))
+		}
+		update := &pb.Update{Path: path, Val: val}
+		return &pb.Notification{
+			Timestamp: time.Now().UnixNano(),
+			Prefix:    prefix,
+			Update:    []*pb.Update{update},
+		}, nil
+	}
+	if entry.IsDir() {
+		jsonDump, err := json.Marshal(requestedValue)
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("error in marshaling %s JSON tree to bytes: %v", "Internal", err))
+		}
+
+		update := buildUpdate(jsonDump, path, "Internal")
+		return &pb.Notification{
+			Timestamp: time.Now().UnixNano(),
+			Prefix:    prefix,
+			Update:    []*pb.Update{update},
+		}, nil
+	}
+	panic(fmt.Sprintf("unexpected schema entry type %s", entry.Name))
+}
+
+func getRequestedNode(mapin map[string]interface{}, path *pb.Path) (interface{}, error) {
+	var val interface{} = mapin
+	for i, elem := range path.Elem {
+		ok := false
+		var nextmap map[string]interface{}
+		switch v := val.(type) {
+		case map[string]interface{}:
+			nextmap = v
+		case []interface{}:
+			nextmap = v[0].(map[string]interface{})
+		}
+		val, ok = nextmap[elem.Name]
+		if !ok {
+			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)
+		}
+		if i == len(path.Elem)-1 {
+			break
+		}
+
+	}
+	return val, nil
+}
+
+func (a *Adapter) getSchemaEntryForPath(path *pb.Path) *yang.Entry {
+	rootEntry := a.model.schemaTreeRoot
+	if path.Elem == nil {
+		return rootEntry
+	}
+
+	entry := rootEntry
+	for _, elem := range path.Elem {
+		next, ok := entry.Dir[elem.Name]
+		if !ok {
+			return nil
+		}
+		entry = next
+	}
+	return entry
 }
 
 func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
