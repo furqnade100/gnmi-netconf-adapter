@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -56,9 +55,6 @@ func getGNMIServiceVersion() (*string, error) {
 // gnmiFullPath builds the full path from the prefix and path.
 func gnmiFullPath(prefix, path *pb.Path) *pb.Path {
 	fullPath := &pb.Path{Origin: path.Origin}
-	if path.GetElement() != nil {
-		fullPath.Element = append(prefix.GetElement(), path.GetElement()...)
-	}
 	if path.GetElem() != nil {
 		fullPath.Elem = append(prefix.GetElem(), path.GetElem()...)
 	}
@@ -90,78 +86,6 @@ func (a *Adapter) checkEncodingAndModel(encoding pb.Encoding, models []*pb.Model
 		}
 	}
 	return nil
-}
-
-// Contains checks the existence of a given string in an array of strings.
-func Contains(a []string, x string) bool {
-	for _, n := range a {
-		if x == n {
-			return true
-		}
-	}
-	return false
-}
-
-// pruneConfigData prunes the given JSON subtree based on the given data type and path info.
-func pruneConfigData(data interface{}, dataType string, fullPath *pb.Path) interface{} {
-
-	if reflect.ValueOf(data).Kind() == reflect.Slice {
-		d := reflect.ValueOf(data)
-		tmpData := make([]interface{}, d.Len())
-		returnSlice := make([]interface{}, d.Len())
-		for i := 0; i < d.Len(); i++ {
-			tmpData[i] = d.Index(i).Interface()
-		}
-		for i, v := range tmpData {
-			returnSlice[i] = pruneConfigData(v, dataType, fullPath)
-		}
-		return returnSlice
-	} else if reflect.ValueOf(data).Kind() == reflect.Map {
-		d := reflect.ValueOf(data)
-		tmpData := make(map[string]interface{})
-		for _, k := range d.MapKeys() {
-			match, _ := regexp.MatchString(dataType, k.String())
-			matchAll := strings.Compare(dataType, "all")
-			typeOfValue := reflect.TypeOf(d.MapIndex(k).Interface()).Kind()
-
-			if match || matchAll == 0 {
-				newKey := k.String()
-				if typeOfValue == reflect.Map || typeOfValue == reflect.Slice {
-					tmpData[newKey] = pruneConfigData(d.MapIndex(k).Interface(), dataType, fullPath)
-
-				} else {
-					tmpData[newKey] = d.MapIndex(k).Interface()
-				}
-			} else {
-				tmpIteration := pruneConfigData(d.MapIndex(k).Interface(), dataType, fullPath)
-				if typeOfValue == reflect.Map {
-					tmpMap := tmpIteration.(map[string]interface{})
-					if len(tmpMap) != 0 {
-						tmpData[k.String()] = tmpIteration
-						if Contains(dataTypes, k.String()) {
-							delete(tmpData, k.String())
-						}
-					}
-				} else if typeOfValue == reflect.Slice {
-					tmpMap := tmpIteration.([]interface{})
-					if len(tmpMap) != 0 {
-						tmpData[k.String()] = tmpIteration
-						if Contains(dataTypes, k.String()) {
-							delete(tmpData, k.String())
-
-						}
-					}
-				} else {
-					tmpData[k.String()] = d.MapIndex(k).Interface()
-
-				}
-			}
-
-		}
-
-		return tmpData
-	}
-	return data
 }
 
 func buildUpdate(b []byte, path *pb.Path, valType string) *pb.Update {

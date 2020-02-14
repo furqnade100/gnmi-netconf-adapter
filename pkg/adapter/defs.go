@@ -26,9 +26,7 @@ import (
 type ConfigCallback func(ygot.ValidatedGoStruct) error
 
 var (
-	pbRootPath         = &pb.Path{}
 	supportedEncodings = []pb.Encoding{pb.Encoding_JSON}
-	dataTypes          = []string{"config", "state", "operational", "all"}
 )
 
 // Adapter struct implements the interface of gnmi server. It supports Capabilities, Get, and Set APIs.
@@ -44,17 +42,4 @@ var (
 type Adapter struct {
 	model *Model
 	ncs   ops.OpSession
-}
-
-var (
-	lowestSampleInterval uint64 = 5000000000 // 5000000000 nanoseconds
-)
-
-type streamClient struct {
-	target         string
-	sr             *pb.SubscribeRequest
-	stream         pb.GNMI_SubscribeServer
-	errChan        chan error
-	UpdateChan     chan *pb.Update
-	sampleInterval uint64
 }

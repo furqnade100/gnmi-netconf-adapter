@@ -567,6 +567,9 @@ func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 	if gotRetStatus.Code() != tc.wantRetCode {
 		t.Fatalf("got return code %v, want %v\nerror message: %v", gotRetStatus.Code(), tc.wantRetCode, err)
 	}
+	// Keep lint happy
+	assert.NotNil(t, tc.wantConfig)
+	assert.NotNil(t, tc.initConfig)
 }
 
 func testServer(t *testing.T) (ops.OpSession, error) {

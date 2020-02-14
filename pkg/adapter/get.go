@@ -57,10 +57,6 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 			fullPath = gnmiFullPath(prefix, path)
 		}
 
-		if fullPath.GetElem() == nil && fullPath.GetElement() != nil {
-			return nil, status.Error(codes.Unimplemented, "deprecated path element type is unsupported")
-		}
-
 		entry := a.getSchemaEntryForPath(fullPath)
 		if entry == nil {
 			return nil, status.Errorf(codes.NotFound, "path %v not found (Test)", fullPath)
@@ -315,11 +311,8 @@ func getUnionValue(v string, types []*yang.YangType) (interface{}, error) {
 }
 
 func isValidString(v string, t *yang.YangType) bool {
-	if !anyPatternMatches(v, t.Pattern) {
-		return false
-	}
+	return anyPatternMatches(v, t.Pattern)
 	// TODO Range checks?
-	return true
 }
 
 func isValidInt(v string, t *yang.YangType) interface{} {
