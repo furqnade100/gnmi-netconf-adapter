@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"reflect"
-	"strings"
 
 	"github.com/golang/protobuf/proto"
 	dpb "github.com/golang/protobuf/protoc-gen-go/descriptor"
@@ -86,16 +85,4 @@ func (a *Adapter) checkEncodingAndModel(encoding pb.Encoding, models []*pb.Model
 		}
 	}
 	return nil
-}
-
-func buildUpdate(b []byte, path *pb.Path, valType string) *pb.Update {
-	var update *pb.Update
-
-	if strings.Compare(valType, "Internal") == 0 {
-		update = &pb.Update{Path: path, Val: &pb.TypedValue{Value: &pb.TypedValue_JsonVal{JsonVal: b}}}
-		return update
-	}
-	update = &pb.Update{Path: path, Val: &pb.TypedValue{Value: &pb.TypedValue_JsonIetfVal{JsonIetfVal: b}}}
-
-	return update
 }

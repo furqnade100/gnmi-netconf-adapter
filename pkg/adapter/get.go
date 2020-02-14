@@ -139,6 +139,7 @@ func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.
 // map keys are element names, and values are either
 // - scalars for leaf values
 // - nested maps for container values
+// - arrays of scalars/maps for leaf/container lists
 // If netconf elements are not defined in the schema, they are not included in the map.
 func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
@@ -184,7 +185,7 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 				val = preveld.value
 			}
 			tag := preveld.schema.Name
-			if preveld.schema.IsList() {
+			if preveld.schema.IsList() || preveld.schema.IsLeafList() {
 				if _, ok := cureld.children[tag]; !ok {
 					cureld.children[tag] = []interface{}{}
 				}
@@ -194,15 +195,11 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 			}
 
 		case xml.CharData:
-			if cureld.schema != nil {
-				if cureld.schema.IsLeaf() {
-					cureld.value = getLeafValue(v, cureld.schema)
-				}
-				if cureld.schema.IsLeafList() {
-					if cureld.value == nil {
-						cureld.value = []interface{}{}
+			if cureld != nil {
+				if cureld.schema != nil {
+					if cureld.schema.IsLeaf() || cureld.schema.IsLeafList() {
+						cureld.value = getLeafValue(v, cureld.schema)
 					}
-					cureld.value = append(cureld.value.([]interface{}), getLeafValue(v, cureld.schema))
 				}
 			}
 
@@ -212,101 +209,87 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 	}
 }
 
+// getRequestedNode delivers the node requested by the specified gNMI path from the
+// input (a map delivered by the netconfXMLtoMap method)
+func getRequestedNode(input interface{}, path *pb.Path) (interface{}, error) {
+
+	for _, elem := range path.Elem {
+		var nextmap map[string]interface{}
+		switch v := input.(type) {
+		case map[string]interface{}:
+			nextmap = v
+		case []interface{}:
+			nextmap = v[0].(map[string]interface{})
+		}
+		input = nextmap[elem.Name]
+		if input == nil {
+			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)
+		}
+	}
+	return input, nil
+}
+
+// buildGnmiNotification maps the netconf returned value to a gNMI notification
 func (a *Adapter) buildGnmiNotification(entry *yang.Entry, requestedValue interface{}, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
 
 	if entry.IsLeaf() {
-		var err error
-		var val *pb.TypedValue
-		val, err = value.FromScalar(reflect.ValueOf(&requestedValue).Elem().Interface())
+		val, err := value.FromScalar(reflect.ValueOf(&requestedValue).Elem().Interface())
 		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("leaf node %v does not contain a scalar type value: %v", path, err))
 		}
-		update := &pb.Update{Path: path, Val: val}
-		return &pb.Notification{
-			Timestamp: time.Now().UnixNano(),
-			Prefix:    prefix,
-			Update:    []*pb.Update{update},
-		}, nil
+		return notification(prefix, &pb.Update{Path: path, Val: val}), nil
 	}
 	if entry.IsDir() {
 		jsonDump, err := json.Marshal(requestedValue)
 		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("error in marshaling %s JSON tree to bytes: %v", "Internal", err))
 		}
-
-		update := buildUpdate(jsonDump, path, "Internal")
-		return &pb.Notification{
-			Timestamp: time.Now().UnixNano(),
-			Prefix:    prefix,
-			Update:    []*pb.Update{update},
-		}, nil
+		return notification(prefix, &pb.Update{Path: path, Val: &pb.TypedValue{Value: &pb.TypedValue_JsonVal{JsonVal: jsonDump}}}), nil
 	}
 	panic(fmt.Sprintf("unexpected schema entry type %s", entry.Name))
 }
 
-func getRequestedNode(mapin map[string]interface{}, path *pb.Path) (interface{}, error) {
-	var val interface{} = mapin
-	for i, elem := range path.Elem {
-		ok := false
-		var nextmap map[string]interface{}
-		switch v := val.(type) {
-		case map[string]interface{}:
-			nextmap = v
-		case []interface{}:
-			nextmap = v[0].(map[string]interface{})
-		}
-		val, ok = nextmap[elem.Name]
-		if !ok {
-			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)
-		}
-		if i == len(path.Elem)-1 {
-			break
-		}
-
+// notification returns a new Notification with the specified prefix, update and the current time.
+func notification(prefix *pb.Path, update *pb.Update) *pb.Notification {
+	return &pb.Notification{
+		Timestamp: time.Now().UnixNano(),
+		Prefix:    prefix,
+		Update:    []*pb.Update{update},
 	}
-	return val, nil
 }
 
+// getSchemaEntryForPath delivers the schema entry associated with the last element of the supplied path,
+// returning nil if the schema does not include the path.
 func (a *Adapter) getSchemaEntryForPath(path *pb.Path) *yang.Entry {
-	rootEntry := a.model.schemaTreeRoot
-	if path.Elem == nil {
-		return rootEntry
-	}
-
-	entry := rootEntry
+	entry := a.model.schemaTreeRoot
 	for _, elem := range path.Elem {
-		next, ok := entry.Dir[elem.Name]
-		if !ok {
-			return nil
+		entry = entry.Dir[elem.Name]
+		if entry == nil {
+			break
 		}
-		entry = next
 	}
 	return entry
 }
 
+func getChildSchema(name string, parent *yang.Entry) *yang.Entry {
+	return parent.Dir[name]
+}
+
+// Delivers the value of leaf, using the type defined by the associated schema entry.
 func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
-	// TODO SJ Handle data according to leaf type.
 
 	switch schema.Type.Kind {
 	case yang.Ystring:
 		return strings.TrimSpace(string(v))
 	case yang.Yunion:
-		// TODO Iterate over types
 		val, _ := getUnionValue(strings.TrimSpace(string(v)), schema.Type.Type)
-		//val, _ := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
 		return val
 	case yang.Yenum:
-		// TODO Check what else needs done
 		return strings.TrimSpace(string(v))
 	}
 	// TODO Handle other kinds
-	fmt.Printf("Leaf kind %s still to be supported\n", schema.Type.Kind)
+	log.Errorf("Leaf kind %s still to be supported", schema.Type.Kind)
 	return strings.TrimSpace(string(v))
-}
-
-func getChildSchema(name string, parent *yang.Entry) *yang.Entry {
-	// Ignore any elements that are not in the schema.
-	return parent.Dir[name]
 }
 
 func getUnionValue(v string, types []*yang.YangType) (interface{}, error) {
@@ -321,8 +304,8 @@ func getUnionValue(v string, types []*yang.YangType) (interface{}, error) {
 			if val != nil {
 				return val, nil
 			}
-			// TODO Add other kinds.
 		}
+		// TODO Add other kinds.
 	}
 	return nil, status.Errorf(codes.NotFound, "failed to set union value: %s", v)
 }
@@ -357,14 +340,10 @@ func anyPatternMatches(v string, patterns []string) bool {
 }
 
 func patternMatches(v string, p string) bool {
-
-	r, err := regexp.Compile(fixYangRegexp(p))
-	if err != nil {
-		return false
-	}
 	// fixYangRegexp adds ^(...)$ around the pattern - the result is
 	// equivalent to a full match of whole string.
-	return r.MatchString(v)
+	r, err := regexp.Compile(fixYangRegexp(p))
+	return err != nil && r.MatchString(v)
 }
 
 // Following function is lifted unchanged from https://github.com/openconfig/ygot/blob/master/ytypes/string_type.go
