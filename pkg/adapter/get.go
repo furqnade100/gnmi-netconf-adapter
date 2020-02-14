@@ -36,6 +36,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	log "k8s.io/klog"
 )
 
 // Get implements the Get RPC in gNMI spec.
@@ -115,7 +116,7 @@ func pathToNetconfSubtree(path *pb.Path) interface{} {
 // response as an XML string.
 func (a *Adapter) executeGetConfig(filter interface{}, path *pb.Path) (string, error) {
 	result := ""
-	err := a.ncs.GetConfigSubtree(filter, ops.RunningCfg, &result)
+	err := a.ncs.GetConfigSubtree(filter, ops.CandidateCfg, &result)
 	if err != nil {
 		return "", status.Errorf(codes.Unknown, "failed to get config for %v %v", path, err)
 	}
@@ -134,84 +135,81 @@ func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.
 	return a.buildGnmiNotification(entry, requestedValue, path, prefix)
 }
 
-// netconfXMLtoMap converts a netconf XML response to a map.
+// netconfXMLtoMap converts a well-formed netconf XML response to a map.
+// map keys are element names, and values are either
+// - scalars for leaf values
+// - nested maps for container values
+// If netconf elements are not defined in the schema, they are not included in the map.
 func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
 	type eldesc struct {
 		schema   *yang.Entry
-		tag      string
 		value    interface{}
 		children map[string]interface{}
 	}
 	top := make(map[string]interface{})
+	cureld := &eldesc{schema: a.model.schemaTreeRoot, children: top}
 	var stack []*eldesc
-	var cureld *eldesc
-
-	schema := a.model.schemaTreeRoot
 
 	for {
 		tk, _ := dec.Token()
-		if tk != nil {
-			switch v := tk.(type) {
-			case xml.StartElement:
-				var nschema *yang.Entry
-				if cureld == nil {
-					nschema = getChildSchema(v.Name.Local, schema)
-				} else {
-					stack = append(stack, cureld)
-					if cureld.schema != nil {
-						nschema = getChildSchema(v.Name.Local, cureld.schema)
-					}
-				}
-				cureld = &eldesc{schema: nschema, tag: v.Name.Local, children: make(map[string]interface{})}
-			case xml.EndElement:
-				l := len(stack)
-				if l > 0 {
-					preveld := cureld
-					cureld = stack[l-1]
-					stack = stack[:l-1]
+		if tk == nil {
+			return top
+		}
 
-					if preveld.schema == nil {
-						break
-					}
-					isList := preveld.schema.IsList()
+		switch v := tk.(type) {
 
-					var val interface{}
-					if len(preveld.children) > 0 {
-						val = preveld.children
-					} else {
-						val = preveld.value
-					}
-					if isList {
-						if _, ok := cureld.children[preveld.tag]; !ok {
-							cureld.children[preveld.tag] = []interface{}{}
-						}
-						cureld.children[preveld.tag] = append(cureld.children[preveld.tag].([]interface{}), val)
-					} else {
-						cureld.children[preveld.tag] = val
-					}
-				} else {
-					top[cureld.tag] = cureld.children
-				}
-
-			case xml.CharData:
-				if cureld != nil {
-					if cureld.schema != nil {
-						if cureld.schema.IsLeaf() || cureld.schema.IsLeafList() {
-							// TODO List!
-							cureld.value = getLeafValue(v, cureld.schema)
-						}
-					}
-				}
-			default:
-				fmt.Println("Got token", tk, reflect.TypeOf(tk))
+		case xml.StartElement:
+			var nschema *yang.Entry
+			if cureld.schema != nil {
+				nschema = getChildSchema(v.Name.Local, cureld.schema)
 			}
-		} else {
-			break
+			stack = append(stack, cureld)
+			cureld = &eldesc{schema: nschema, children: make(map[string]interface{})}
+
+		case xml.EndElement:
+			preveld := cureld
+			l := len(stack)
+			cureld = stack[l-1]
+			stack = stack[:l-1]
+			if preveld.schema == nil {
+				break
+			}
+
+			var val interface{}
+			if len(preveld.children) > 0 {
+				val = preveld.children
+			} else {
+				val = preveld.value
+			}
+			tag := preveld.schema.Name
+			if preveld.schema.IsList() {
+				if _, ok := cureld.children[tag]; !ok {
+					cureld.children[tag] = []interface{}{}
+				}
+				cureld.children[tag] = append(cureld.children[tag].([]interface{}), val)
+			} else {
+				cureld.children[tag] = val
+			}
+
+		case xml.CharData:
+			if cureld.schema != nil {
+				if cureld.schema.IsLeaf() {
+					cureld.value = getLeafValue(v, cureld.schema)
+				}
+				if cureld.schema.IsLeafList() {
+					if cureld.value == nil {
+						cureld.value = []interface{}{}
+					}
+					cureld.value = append(cureld.value.([]interface{}), getLeafValue(v, cureld.schema))
+				}
+			}
+
+		default:
+			log.Infof("Unexpected token type %s - %v", reflect.TypeOf(tk), tk)
 		}
 	}
-	return top
 }
 
 func (a *Adapter) buildGnmiNotification(entry *yang.Entry, requestedValue interface{}, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
