@@ -8,4 +8,6 @@ RUN make build && cp /workspace/${o} /workspace/main
 
 FROM alpine AS final
 COPY --from=builder /workspace/main ./
+COPY pkg/certs certs
+
 CMD [ "./main", "server"]
