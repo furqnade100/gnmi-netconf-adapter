@@ -78,7 +78,7 @@ func (a *Adapter) executeOperation(op pb.UpdateResult_Operation, prefix, path *p
 		return nil, err
 	}
 
-	err = a.ncs.EditConfig(ops.CandidateCfg, ops.Cfg(request))
+	err = a.ncs.EditConfigCfg(ops.CandidateCfg, request)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
 	}

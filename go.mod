@@ -3,7 +3,7 @@ module github.com/onosproject/gnmi-netconf-adapter
 go 1.12
 
 require (
-	github.com/damianoneill/net/v2 v2.1.0
+	github.com/damianoneill/net/v2 v2.2.1-0.20200217121109-05a633246997
 	github.com/golang/protobuf v1.3.1
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
@@ -17,7 +17,6 @@ require (
 	golang.org/x/crypto v0.0.0-20191119213627-4f8c1d86b1ba
 	golang.org/x/net v0.0.0-20190522155817-f3200d17e092
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
 	google.golang.org/grpc v1.21.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	k8s.io/klog v0.3.3

@@ -226,6 +226,9 @@ func getRequestedNode(input interface{}, path *pb.Path) (interface{}, error) {
 			return nil, status.Errorf(codes.NotFound, "failed to find path: %v", path)
 		}
 	}
+	if v, ok := input.([]interface{}); ok {
+		input = v[0].(map[string]interface{})
+	}
 	return input, nil
 }
 
@@ -283,6 +286,9 @@ func getLeafValue(v xml.CharData, schema *yang.Entry) interface{} {
 		return strings.TrimSpace(string(v))
 	case yang.Yunion:
 		val, _ := getUnionValue(strings.TrimSpace(string(v)), schema.Type.Type)
+		return val
+	case yang.Yuint32:
+		val, _ := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
 		return val
 	case yang.Yenum:
 		return strings.TrimSpace(string(v))

@@ -20,7 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/damianoneill/net/v2/netconf/ops/mocks"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/damianoneill/net/v2/netconf/ops"
 
@@ -32,8 +33,8 @@ import (
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/testdata/modeldata"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/testdata/modeldata/gostruct"
 )
 
 var (
@@ -43,14 +44,18 @@ var (
 
 func TestGet(t *testing.T) {
 
-	ncs, err := testServer(t)
-	assert.NoError(t, err)
-	defer ncs.Close()
-
-	s, err := NewAdapter(model, ncs)
-	if err != nil {
-		t.Fatalf("error in creating server: %v", err)
-	}
+	jsonSystemRoot := `{
+		"system": {
+			"openflow": {
+				"agent": {
+					"config": {
+						"failure-mode": "SECURE",
+						"max-backoff": 10
+					}
+				}
+			}
+	  }
+	}`
 
 	tests := []struct {
 		desc        string
@@ -58,56 +63,116 @@ func TestGet(t *testing.T) {
 		modelData   []*pb.ModelData
 		wantRetCode codes.Code
 		wantRespVal interface{}
+		ncFilter    interface{}
+		ncResponse  error
+		ncResult    string
 	}{{
 		desc: "get valid but non-existing node",
 		textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "clock" >
 		`,
+		ncFilter:    `<system><clock></clock></system>`,
 		wantRetCode: codes.NotFound,
 	}, {
 		desc:        "root node",
+		ncResult:    `<system><openflow><agent><config><failure-mode>SECURE</failure-mode><max-backoff>10</max-backoff></config></agent></openflow></system>`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{}`,
+		wantRespVal: jsonSystemRoot,
 	}, {
-		desc: "get leaf",
+		desc: "get non-enum type",
 		textPbPath: `
-					elem: <name: "configuration" >
 					elem: <name: "system" >
-					elem: <name: "services" >
-					elem: <name: "ssh" >
-					elem: <name: "max-sessions-per-connection" >
+					elem: <name: "openflow" >
+					elem: <name: "agent" >
+					elem: <name: "config" >
+					elem: <name: "max-backoff" >
 				`,
+		ncFilter:    `<system><openflow><agent><config><max-backoff></max-backoff></config></agent></openflow></system>`,
+		ncResult:    `<system><openflow><agent><config><max-backoff>10</max-backoff></config></agent></openflow></system>`,
 		wantRetCode: codes.OK,
-		wantRespVal: int64(32),
+		wantRespVal: uint64(10),
 	}, {
-		desc: "get container",
+		desc: "get enum type",
 		textPbPath: `
-					elem: <name: "configuration" >
 					elem: <name: "system" >
-					elem: <name: "services" >
-					elem: <name: "ssh" >
+					elem: <name: "openflow" >
+					elem: <name: "agent" >
+					elem: <name: "config" >
+					elem: <name: "failure-mode" >
 				`,
+		ncFilter:    `<system><openflow><agent><config><failure-mode></failure-mode></config></agent></openflow></system>`,
+		ncResult:    `<system><openflow><agent><config><failure-mode>SECURE</failure-mode></config></agent></openflow></system>`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{"max-sessions-per-connection": 32}`,
-	}, {
-		desc: "get keyed container",
-		textPbPath: `
-					elem: <name: "configuration" >
-					elem: <name: "interfaces" >
-					elem: <
-						name: "interface"
-						key: <key: "name" value: "et-0/3/0" >
-					>
-					elem: <name: "otn-options" >
-	`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{"rate": "otu4"}`,
+		wantRespVal: "SECURE",
 	}, {
 		desc:        "root child node",
-		textPbPath:  `elem: <name: "configuration" >`,
+		textPbPath:  `elem: <name: "components" >`,
+		ncFilter:    `<components></components>`,
+		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{}`,
+		wantRespVal: `{
+							"component": [{
+								"config": {
+						        	"name": "swpri1-1-1"
+								},
+						        "name": "swpri1-1-1"
+							}]}`,
+	}, {
+		desc: "node with attribute",
+		textPbPath: `
+								elem: <name: "components" >
+								elem: <
+									name: "component"
+									key: <key: "name" value: "swpri1-1-1" >
+								>`,
+		ncFilter:    `<components><component><name>swpri1-1-1</name></component></components>`,
+		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+		wantRetCode: codes.OK,
+		wantRespVal: `{
+								"config": {"name": "swpri1-1-1"},
+								"name": "swpri1-1-1"
+							}`,
+	}, {
+		desc: "node with attribute in its parent",
+		textPbPath: `
+								elem: <name: "components" >
+								elem: <
+									name: "component"
+									key: <key: "name" value: "swpri1-1-1" >
+								>
+								elem: <name: "config" >`,
+		ncFilter:    `<components><component><name>swpri1-1-1</name><config></config></component></components>`,
+		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+		wantRetCode: codes.OK,
+		wantRespVal: `{"name": "swpri1-1-1"}`,
+	}, {
+		desc: "ref leaf node",
+		textPbPath: `
+								elem: <name: "components" >
+								elem: <
+									name: "component"
+									key: <key: "name" value: "swpri1-1-1" >
+								>
+								elem: <name: "name" >`,
+		ncFilter:    `<components><component><name>swpri1-1-1</name><name></name></component></components>`,
+		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+		wantRetCode: codes.OK,
+		wantRespVal: "swpri1-1-1",
+	}, {
+		desc: "regular leaf node",
+		textPbPath: `
+								elem: <name: "components" >
+								elem: <
+									name: "component"
+									key: <key: "name" value: "swpri1-1-1" >
+								>
+								elem: <name: "config" >
+								elem: <name: "name" >`,
+		ncFilter:    `<components><component><name>swpri1-1-1</name><config><name></name></config></component></components>`,
+		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+		wantRetCode: codes.OK,
+		wantRespVal: "swpri1-1-1",
 	}, {
 		desc: "non-existing node: wrong path name",
 		textPbPath: `
@@ -127,24 +192,39 @@ func TestGet(t *testing.T) {
 									key: <key: "foo" value: "swpri2-2-2" >
 								>
 								elem: <name: "name" >`,
+		ncFilter:    `<components><component><foo>swpri2-2-2</foo><name></name></component></components>`,
 		wantRetCode: codes.NotFound,
 	}, {
 		desc:        "use of model data not supported",
-		modelData:   []*pb.ModelData{{}},
+		modelData:   []*pb.ModelData{&pb.ModelData{}},
 		wantRetCode: codes.Unimplemented,
 	}}
 
 	for i := range tests {
 		td := tests[i]
 		t.Run(td.desc, func(t *testing.T) {
-			runTestGet(t, s, td.textPbPath, td.wantRetCode, td.wantRespVal, td.modelData)
+			runTestGet(t, td.textPbPath, td.wantRetCode, td.wantRespVal, td.modelData, td.ncFilter, td.ncResponse, td.ncResult)
 		})
 	}
 }
 
 // runTestGet requests a path from the server by Get grpc call, and compares if
 // the return code and response value are expected.
-func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.Code, wantRespVal interface{}, useModels []*pb.ModelData) {
+func runTestGet(t *testing.T, textPbPath string, wantRetCode codes.Code, wantRespVal interface{}, useModels []*pb.ModelData,
+	ncFilter interface{}, ncResponse error, ncResult string) {
+
+	mockNc := &mocks.OpSession{}
+	mockNc.On("GetConfigSubtree", ncFilter, ops.CandidateCfg, mock.Anything).Return(
+		func(filter interface{}, source string, result interface{}) error {
+			*result.(*string) = ncResult
+			return ncResponse
+		})
+
+	s, err := NewAdapter(model, mockNc)
+	if err != nil {
+		t.Fatalf("error in creating server: %v", err)
+	}
+
 	// Send request
 	var pbPath pb.Path
 	if err := proto.UnmarshalText(textPbPath, &pbPath); err != nil {
@@ -203,73 +283,48 @@ func runTestGet(t *testing.T, s *Adapter, textPbPath string, wantRetCode codes.C
 
 type gnmiSetTestCase struct {
 	desc        string                    // description of test case.
-	initConfig  string                    // config before the operation.
 	op          pb.UpdateResult_Operation // operation type.
 	textPbPath  string                    // text format of gnmi Path proto.
 	val         *pb.TypedValue            // value for UPDATE/REPLACE operations. always nil for DELETE.
 	wantRetCode codes.Code                // grpc return code.
-	wantConfig  string                    // config after the operation.
+	ncFilter    interface{}
+	ncResponse  error
 }
 
 func TestUpdate(t *testing.T) {
 	tests := []gnmiSetTestCase{{
+		desc: "update leaf node",
+		op:   pb.UpdateResult_UPDATE,
+		textPbPath: `
+			elem: <name: "system" >
+			elem: <name: "config" >
+			elem: <name: "domain-name" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_StringVal{StringVal: "foo.bar.com"},
+		},
+		ncFilter:    `<system><config><domain-name operation="merge">foo.bar.com</domain-name></config></system>`,
+		wantRetCode: codes.OK,
+	}, {
 		desc: "update subtree",
 		op:   pb.UpdateResult_UPDATE,
 		textPbPath: `
-			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "services" >
-			elem: <name: "ssh" >
+			elem: <name: "config" >
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"max-sessions-per-connection": 32}`),
+				JsonVal: []byte(`{"domain-name": "foo.bar.com", "hostname": "switch_a"}`),
 			},
 		},
+		ncFilter:    `<system><config operation="merge"><domain-name>foo.bar.com</domain-name><hostname>switch_a</hostname></config></system>`,
 		wantRetCode: codes.OK,
-	}, {
-		desc: "update leaf node",
-		initConfig: `{
-			"system": {
-				"config": {
-					"hostname": "switch_a"
-				}
-			}
-		}`,
-		op: pb.UpdateResult_UPDATE,
-		textPbPath: `
-		elem: <name: "configuration" >
-		elem: <name: "system" >
-		elem: <name: "services" >
-		elem: <name: "ssh" >
-		elem: <name: "max-sessions-per-connection" >
-		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_IntVal{IntVal: 32},
-		},
-		wantRetCode: codes.OK,
-		wantConfig: `{
-			"system": {
-				"config": {
-					"domain-name": "foo.bar.com",
-					"hostname": "switch_a"
-				}
-			}
-		}`,
 	}}
-
-	ncs, err := testServer(t)
-	assert.NoError(t, err)
-	defer ncs.Close()
-	s, err := NewAdapter(model, ncs)
-	if err != nil {
-		t.Fatalf("error in creating server: %v", err)
-	}
 
 	for i := range tests {
 		tc := tests[i]
 		t.Run(tc.desc, func(t *testing.T) {
-			runTestSet(t, s, model, tc)
+			runTestSet(t, model, tc)
 		})
 	}
 }
@@ -279,63 +334,102 @@ func TestDelete(t *testing.T) {
 		desc: "delete leaf node",
 		op:   pb.UpdateResult_DELETE,
 		textPbPath: `
-		elem: <name: "configuration" >
-		elem: <name: "system" >
-		elem: <name: "services" >
-		elem: <name: "ssh" >
-		elem: <name: "max-sessions-per-connection" >
+			elem: <name: "system" >
+			elem: <name: "config" >
+			elem: <name: "login-banner" >
 		`,
+		ncFilter:    `<system><config><login-banner operation="delete"></login-banner></config></system>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete sub-tree",
 		op:   pb.UpdateResult_DELETE,
 		textPbPath: `
-		elem: <name: "configuration" >
-		elem: <name: "system" >
-		elem: <name: "services" >
-		elem: <name: "ssh" >
+			elem: <name: "system" >
+			elem: <name: "clock" >
 		`,
+		ncFilter:    `<system><clock operation="delete"></clock></system>`,
 		wantRetCode: codes.OK,
-	},
-	}
+	}, {
+		desc: "delete root",
 
-	ncs, err := testServer(t)
-	assert.NoError(t, err)
-	defer ncs.Close()
-	s, err := NewAdapter(model, ncs)
-	if err != nil {
-		t.Fatalf("error in creating server: %v", err)
-	}
+		op:          pb.UpdateResult_DELETE,
+		wantRetCode: codes.OK,
+	}, {
+		desc: "delete leaf node with attribute in its precedent path",
+		op:   pb.UpdateResult_DELETE,
+		textPbPath: `
+			elem: <name: "components" >
+			elem: <
+				name: "component"
+				key: <key: "name" value: "swpri1-1-1" >
+			>
+			elem: <name: "state" >
+			elem: <name: "mfg-name" >`,
+		ncFilter:    `<components><component><name>swpri1-1-1</name><state><mfg-name operation="delete"></mfg-name></state></component></components>`,
+		wantRetCode: codes.OK,
+	}, {
+		desc: "delete sub-tree with attribute in its precedent path",
+		op:   pb.UpdateResult_DELETE,
+		textPbPath: `
+			elem: <name: "components" >
+			elem: <
+				name: "component"
+				key: <key: "name" value: "swpri1-1-1" >
+			>
+			elem: <name: "state" >`,
+		ncFilter:    `<components><component><name>swpri1-1-1</name><state operation="delete"></state></component></components>`,
+		wantRetCode: codes.OK,
+	}}
 
 	for i := range tests {
 		tc := tests[i]
 		t.Run(tc.desc, func(t *testing.T) {
-			runTestSet(t, s, model, tc)
+			runTestSet(t, model, tc)
 		})
 	}
 }
 
 func TestReplace(t *testing.T) {
 
+	//systemConfig := `{
+	//	"system": {
+	//		"clock": {
+	//			"config": {
+	//				"timezone-name": "Europe/Stockholm"
+	//			}
+	//		},
+	//		"config": {
+	//			"hostname": "switch_a",
+	//			"login-banner": "Hello!"
+	//		}
+	//	}
+	//}`
+
 	tests := []gnmiSetTestCase{{
-		desc: "replace subtree",
+		//	desc: "replace root",
+		//	op:   pb.UpdateResult_REPLACE,
+		//	val: &pb.TypedValue{
+		//		Value: &pb.TypedValue_JsonVal{
+		//			JsonVal: []byte(systemConfig),
+		//		}},
+		//	wantRetCode: codes.OK,
+		//}, {
+		desc: "replace a subtree",
 		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
-			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "services" >
-			elem: <name: "ssh" >
+			elem: <name: "clock" >
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"max-sessions-per-connection": 16}`),
+				JsonVal: []byte(`{"config": {"timezone-name": "US/New York"}}`),
 			},
 		},
+		ncFilter:    `<system><clock operation="replace"><config><timezone-name>US/New York</timezone-name></config></clock></system>`,
 		wantRetCode: codes.OK,
 	}, {
-		desc:       "replace a keyed list subtree",
-		initConfig: `{}`,
-		op:         pb.UpdateResult_REPLACE,
+		desc: "replace a keyed list subtree",
+		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "components" >
 			elem: <
@@ -347,38 +441,11 @@ func TestReplace(t *testing.T) {
 				JsonVal: []byte(`{"config": {"name": "swpri1-1-1"}}`),
 			},
 		},
+		ncFilter:    `<components><component operation="replace"><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
 		wantRetCode: codes.OK,
-		wantConfig: `{
-			"components": {
-				"component": [
-					{
-						"name": "swpri1-1-1",
-						"config": {
-							"name": "swpri1-1-1"
-						}
-					}
-				]
-			}
-		}`,
 	}, {
 		desc: "replace node with int type attribute in its precedent path",
-		initConfig: `{
-			"system": {
-				"openflow": {
-					"controllers": {
-						"controller": [
-							{
-								"config": {
-									"name": "main"
-								},
-								"name": "main"
-							}
-						]
-					}
-				}
-			}
-		}`,
-		op: pb.UpdateResult_REPLACE,
+		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "openflow" >
@@ -399,38 +466,11 @@ func TestReplace(t *testing.T) {
 				JsonVal: []byte(`{"address": "192.0.2.10", "aux-id": 0}`),
 			},
 		},
+		ncFilter:    `<system><openflow><controllers><controller><name>main</name><connections><connection><aux-id>0</aux-id><config operation="replace"><address>192.0.2.10</address><aux-id>0</aux-id></config></connection></connections></controller></controllers></openflow></system>`,
 		wantRetCode: codes.OK,
-		wantConfig: `{
-			"system": {
-				"openflow": {
-					"controllers": {
-						"controller": [
-							{
-								"config": {
-									"name": "main"
-								},
-								"connections": {
-									"connection": [
-										{
-											"aux-id": 0,
-											"config": {
-												"address": "192.0.2.10",
-												"aux-id": 0
-											}
-										}
-									]
-								},
-								"name": "main"
-							}
-						]
-					}
-				}
-			}
-		}`,
 	}, {
-		desc:       "replace a leaf node of int type",
-		initConfig: `{}`,
-		op:         pb.UpdateResult_REPLACE,
+		desc: "replace a leaf node of int type",
+		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "openflow" >
@@ -441,22 +481,11 @@ func TestReplace(t *testing.T) {
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_IntVal{IntVal: 5},
 		},
+		ncFilter:    `<system><openflow><agent><config><backoff-interval operation="replace">5</backoff-interval></config></agent></openflow></system>`,
 		wantRetCode: codes.OK,
-		wantConfig: `{
-			"system": {
-				"openflow": {
-					"agent": {
-						"config": {
-							"backoff-interval": 5
-						}
-					}
-				}
-			}
-		}`,
 	}, {
-		desc:       "replace a leaf node of string type",
-		initConfig: `{}`,
-		op:         pb.UpdateResult_REPLACE,
+		desc: "replace a leaf node of string type",
+		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "openflow" >
@@ -467,48 +496,11 @@ func TestReplace(t *testing.T) {
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_StringVal{StringVal: "00:16:3e:00:00:00:00:00"},
 		},
+		ncFilter:    `<system><openflow><agent><config><datapath-id operation="replace">00:16:3e:00:00:00:00:00</datapath-id></config></agent></openflow></system>`,
 		wantRetCode: codes.OK,
-		wantConfig: `{
-			"system": {
-				"openflow": {
-					"agent": {
-						"config": {
-							"datapath-id": "00:16:3e:00:00:00:00:00"
-						}
-					}
-				}
-			}
-		}`,
 	}, {
-		desc:       "replace a leaf node of enum type",
-		initConfig: `{}`,
-		op:         pb.UpdateResult_REPLACE,
-		textPbPath: `
-			elem: <name: "system" >
-			elem: <name: "openflow" >
-			elem: <name: "agent" >
-			elem: <name: "config" >
-			elem: <name: "failure-mode" >
-		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "SECURE"},
-		},
-		wantRetCode: codes.OK,
-		wantConfig: `{
-			"system": {
-				"openflow": {
-					"agent": {
-						"config": {
-							"failure-mode": "SECURE"
-						}
-					}
-				}
-			}
-		}`,
-	}, {
-		desc:       "replace an non-existing leaf node",
-		initConfig: `{}`,
-		op:         pb.UpdateResult_REPLACE,
+		desc: "replace an non-existing leaf node",
+		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "openflow" >
@@ -520,26 +512,25 @@ func TestReplace(t *testing.T) {
 			Value: &pb.TypedValue_StringVal{StringVal: "SECURE"},
 		},
 		wantRetCode: codes.NotFound,
-		wantConfig:  `{}`,
 	}}
-
-	ncs, err := testServer(t)
-	assert.NoError(t, err)
-	defer ncs.Close()
-	s, err := NewAdapter(model, ncs)
-	if err != nil {
-		t.Fatalf("error in creating server: %v", err)
-	}
 
 	for i := range tests {
 		tc := tests[i]
 		t.Run(tc.desc, func(t *testing.T) {
-			runTestSet(t, s, model, tc)
+			runTestSet(t, model, tc)
 		})
 	}
 }
 
-func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
+func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
+
+	mockNc := &mocks.OpSession{}
+	mockNc.On("EditConfigCfg", ops.CandidateCfg, tc.ncFilter).Return(tc.ncResponse)
+
+	s, err := NewAdapter(model, mockNc)
+	if err != nil {
+		t.Fatalf("error in creating adapter: %v", err)
+	}
 
 	// Send request
 	var pbPath pb.Path
@@ -557,7 +548,7 @@ func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 	default:
 		t.Fatalf("invalid op type: %v", tc.op)
 	}
-	_, err := s.Set(context.TODO(), req)
+	_, err = s.Set(context.TODO(), req)
 
 	// Check return code
 	gotRetStatus, ok := status.FromError(err)
@@ -567,15 +558,12 @@ func runTestSet(t *testing.T, s *Adapter, m *Model, tc gnmiSetTestCase) {
 	if gotRetStatus.Code() != tc.wantRetCode {
 		t.Fatalf("got return code %v, want %v\nerror message: %v", gotRetStatus.Code(), tc.wantRetCode, err)
 	}
-	// Keep lint happy
-	assert.NotNil(t, tc.wantConfig)
-	assert.NotNil(t, tc.initConfig)
 }
 
 func testServer(t *testing.T) (ops.OpSession, error) {
 	sshConfig := &ssh.ClientConfig{
-		User:            "r......",
-		Auth:            []ssh.AuthMethod{ssh.Password("M......")},
+		User:            "regress",
+		Auth:            []ssh.AuthMethod{ssh.Password("MaRtInI")},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
