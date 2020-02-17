@@ -16,7 +16,6 @@ package gnmi
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -27,7 +26,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/openconfig/gnmi/value"
-	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -196,7 +194,7 @@ func TestGet(t *testing.T) {
 		wantRetCode: codes.NotFound,
 	}, {
 		desc:        "use of model data not supported",
-		modelData:   []*pb.ModelData{&pb.ModelData{}},
+		modelData:   []*pb.ModelData{{}},
 		wantRetCode: codes.Unimplemented,
 	}}
 
@@ -558,18 +556,4 @@ func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 	if gotRetStatus.Code() != tc.wantRetCode {
 		t.Fatalf("got return code %v, want %v\nerror message: %v", gotRetStatus.Code(), tc.wantRetCode, err)
 	}
-}
-
-func testServer(t *testing.T) (ops.OpSession, error) {
-	sshConfig := &ssh.ClientConfig{
-		User:            "regress",
-		Auth:            []ssh.AuthMethod{ssh.Password("MaRtInI")},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	ncs, err := ops.NewSession(context.Background(), sshConfig, fmt.Sprintf("10.228.63.5:%d", 830))
-	if err != nil {
-		t.Fatalf("failed in creating server: %v", err)
-	}
-	return ncs, err
 }
