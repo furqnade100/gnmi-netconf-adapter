@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"sort"
 
 	"github.com/openconfig/goyang/pkg/yang"
 
@@ -202,7 +203,12 @@ func mapOperation(op pb.UpdateResult_Operation) string {
 
 // Converts a map generated from a JSON value supplied on a Set operation to XML, using the supplied encoder.
 func jsonMapToXML(input map[string]interface{}, enc *xml.Encoder) error {
-	for k, v := range input {
+
+	// Sort the map keys (makes for deterministic test behaviour).
+	keys := sortMapKeys(input)
+
+	for _, k := range keys {
+		v := input[k]
 		err := enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: k}})
 		if err != nil {
 			return err
@@ -222,4 +228,15 @@ func jsonMapToXML(input map[string]interface{}, enc *xml.Encoder) error {
 		}
 	}
 	return nil
+}
+
+func sortMapKeys(input map[string]interface{}) []string {
+	keys := []string{}
+	for k := range input {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return keys
 }
