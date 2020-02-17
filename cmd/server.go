@@ -64,7 +64,6 @@ func init() {
 	deviceUsername = serverCmd.Flags().String("device-user", "", "device NETCONF username")
 	devicePassword = serverCmd.Flags().String("device-pass", "", "device NETCONF password")
 
-	setupKlog()
 	rootCmd.AddCommand(serverCmd)
 }
 
