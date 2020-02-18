@@ -31,8 +31,8 @@ import (
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/testdata/modeldata"
-	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/testdata/modeldata/gostruct"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
 )
 
 var (
@@ -41,19 +41,6 @@ var (
 )
 
 func TestGet(t *testing.T) {
-
-	jsonSystemRoot := `{
-		"system": {
-			"openflow": {
-				"agent": {
-					"config": {
-						"failure-mode": "SECURE",
-						"max-backoff": 10
-					}
-				}
-			}
-	  }
-	}`
 
 	tests := []struct {
 		desc        string
@@ -74,103 +61,94 @@ func TestGet(t *testing.T) {
 		wantRetCode: codes.NotFound,
 	}, {
 		desc:        "root node",
-		ncResult:    `<system><openflow><agent><config><failure-mode>SECURE</failure-mode><max-backoff>10</max-backoff></config></agent></openflow></system>`,
+		ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
-		wantRespVal: jsonSystemRoot,
+		wantRespVal: `{
+						"configuration": {
+							"system": {
+								"services": {
+									"ssh": {
+										"max-sessions-per-connection": 32
+									}
+								}
+							}
+						}
+					}`,
 	}, {
 		desc: "get non-enum type",
 		textPbPath: `
+					elem: <name: "configuration" >
 					elem: <name: "system" >
-					elem: <name: "openflow" >
-					elem: <name: "agent" >
-					elem: <name: "config" >
-					elem: <name: "max-backoff" >
+					elem: <name: "services" >
+					elem: <name: "ssh" >
+					elem: <name: "max-sessions-per-connection" >
 				`,
-		ncFilter:    `<system><openflow><agent><config><max-backoff></max-backoff></config></agent></openflow></system>`,
-		ncResult:    `<system><openflow><agent><config><max-backoff>10</max-backoff></config></agent></openflow></system>`,
+		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection></max-sessions-per-connection></ssh></services></system></configuration>`,
+		ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
-		wantRespVal: uint64(10),
+		wantRespVal: int64(32),
 	}, {
 		desc: "get enum type",
 		textPbPath: `
-					elem: <name: "system" >
-					elem: <name: "openflow" >
-					elem: <name: "agent" >
-					elem: <name: "config" >
-					elem: <name: "failure-mode" >
+					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
+					elem: <
+						name: "interface" 
+						key: <key: "name" value: "0/3/0" >
+					>
+					elem: <name: "otn-options" >
+					elem: <name: "rate" >
 				`,
-		ncFilter:    `<system><openflow><agent><config><failure-mode></failure-mode></config></agent></openflow></system>`,
-		ncResult:    `<system><openflow><agent><config><failure-mode>SECURE</failure-mode></config></agent></openflow></system>`,
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate></rate></otn-options></interface></interfaces></configuration>`,
+		ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
-		wantRespVal: "SECURE",
+		wantRespVal: "otu4",
 	}, {
 		desc:        "root child node",
-		textPbPath:  `elem: <name: "components" >`,
-		ncFilter:    `<components></components>`,
-		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+		textPbPath:  `elem: <name: "configuration" >`,
+		ncFilter:    `<configuration></configuration>`,
+		ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 		wantRespVal: `{
-							"component": [{
-								"config": {
-						        	"name": "swpri1-1-1"
-								},
-						        "name": "swpri1-1-1"
-							}]}`,
+						"system": {
+							"services": {
+								"ssh": {
+									"max-sessions-per-connection": 32
+								}
+							}
+						}
+					}`,
 	}, {
 		desc: "node with attribute",
 		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>`,
-		ncFilter:    `<components><component><name>swpri1-1-1</name></component></components>`,
-		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
+					elem: <
+						name: "interface" 
+						key: <key: "name" value: "0/3/0" >
+					>`,
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name></interface></interfaces></configuration>`,
+		ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
 		wantRespVal: `{
-								"config": {"name": "swpri1-1-1"},
-								"name": "swpri1-1-1"
-							}`,
+						"name": "0/3/0",
+						"otn-options": { "rate": "otu4" }
+						}`,
 	}, {
 		desc: "node with attribute in its parent",
 		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>
-								elem: <name: "config" >`,
-		ncFilter:    `<components><component><name>swpri1-1-1</name><config></config></component></components>`,
-		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
+					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
+					elem: <
+						name: "interface" 
+						key: <key: "name" value: "0/3/0" >
+					>
+					elem: <name: "otn-options" >
+					`,
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options></otn-options></interface></interfaces></configuration>`,
+		ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
-		wantRespVal: `{"name": "swpri1-1-1"}`,
-	}, {
-		desc: "ref leaf node",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>
-								elem: <name: "name" >`,
-		ncFilter:    `<components><component><name>swpri1-1-1</name><name></name></component></components>`,
-		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
-		wantRetCode: codes.OK,
-		wantRespVal: "swpri1-1-1",
-	}, {
-		desc: "regular leaf node",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "name" value: "swpri1-1-1" >
-								>
-								elem: <name: "config" >
-								elem: <name: "name" >`,
-		ncFilter:    `<components><component><name>swpri1-1-1</name><config><name></name></config></component></components>`,
-		ncResult:    `<components><component><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
-		wantRetCode: codes.OK,
-		wantRespVal: "swpri1-1-1",
+		wantRespVal: `{"rate": "otu4" }`,
 	}, {
 		desc: "non-existing node: wrong path name",
 		textPbPath: `
@@ -180,17 +158,6 @@ func TestGet(t *testing.T) {
 									key: <key: "foo" value: "swpri1-1-1" >
 								>
 								elem: <name: "bar" >`,
-		wantRetCode: codes.NotFound,
-	}, {
-		desc: "non-existing node: wrong path attribute",
-		textPbPath: `
-								elem: <name: "components" >
-								elem: <
-									name: "component"
-									key: <key: "foo" value: "swpri2-2-2" >
-								>
-								elem: <name: "name" >`,
-		ncFilter:    `<components><component><foo>swpri2-2-2</foo><name></name></component></components>`,
 		wantRetCode: codes.NotFound,
 	}, {
 		desc:        "use of model data not supported",
@@ -294,28 +261,32 @@ func TestUpdate(t *testing.T) {
 		desc: "update leaf node",
 		op:   pb.UpdateResult_UPDATE,
 		textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "config" >
-			elem: <name: "domain-name" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
+			elem: <name: "max-sessions-per-connection" >
 		`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "foo.bar.com"},
+			Value: &pb.TypedValue_IntVal{IntVal: 64},
 		},
-		ncFilter:    `<system><config><domain-name operation="merge">foo.bar.com</domain-name></config></system>`,
+		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection operation="merge">64</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "update subtree",
 		op:   pb.UpdateResult_UPDATE,
 		textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "config" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"domain-name": "foo.bar.com", "hostname": "switch_a"}`),
+				JsonVal: []byte(`{"max-sessions-per-connection": 16}`),
 			},
 		},
-		ncFilter:    `<system><config operation="merge"><domain-name>foo.bar.com</domain-name><hostname>switch_a</hostname></config></system>`,
+		ncFilter:    `<configuration><system><services><ssh operation="merge"><max-sessions-per-connection>16</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}}
 
@@ -332,50 +303,53 @@ func TestDelete(t *testing.T) {
 		desc: "delete leaf node",
 		op:   pb.UpdateResult_DELETE,
 		textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "config" >
-			elem: <name: "login-banner" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
+			elem: <name: "max-sessions-per-connection" >
 		`,
-		ncFilter:    `<system><config><login-banner operation="delete"></login-banner></config></system>`,
+		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection operation="delete"></max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete sub-tree",
 		op:   pb.UpdateResult_DELETE,
 		textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "clock" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
 		`,
-		ncFilter:    `<system><clock operation="delete"></clock></system>`,
-		wantRetCode: codes.OK,
-	}, {
-		desc: "delete root",
-
-		op:          pb.UpdateResult_DELETE,
+		ncFilter:    `<configuration><system><services><ssh operation="delete"></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete leaf node with attribute in its precedent path",
 		op:   pb.UpdateResult_DELETE,
 		textPbPath: `
-			elem: <name: "components" >
-			elem: <
-				name: "component"
-				key: <key: "name" value: "swpri1-1-1" >
-			>
-			elem: <name: "state" >
-			elem: <name: "mfg-name" >`,
-		ncFilter:    `<components><component><name>swpri1-1-1</name><state><mfg-name operation="delete"></mfg-name></state></component></components>`,
+					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
+					elem: <
+						name: "interface" 
+						key: <key: "name" value: "0/3/0" >
+					>
+					elem: <name: "otn-options" >
+					elem: <name: "rate" >
+					`,
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate operation="delete"></rate></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete sub-tree with attribute in its precedent path",
 		op:   pb.UpdateResult_DELETE,
 		textPbPath: `
-			elem: <name: "components" >
-			elem: <
-				name: "component"
-				key: <key: "name" value: "swpri1-1-1" >
-			>
-			elem: <name: "state" >`,
-		ncFilter:    `<components><component><name>swpri1-1-1</name><state operation="delete"></state></component></components>`,
+					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
+					elem: <
+						name: "interface" 
+						key: <key: "name" value: "0/3/0" >
+					>
+					elem: <name: "otn-options" >
+					`,
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options operation="delete"></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
 	}}
 
@@ -389,112 +363,80 @@ func TestDelete(t *testing.T) {
 
 func TestReplace(t *testing.T) {
 
-	//systemConfig := `{
-	//	"system": {
-	//		"clock": {
-	//			"config": {
-	//				"timezone-name": "Europe/Stockholm"
-	//			}
-	//		},
-	//		"config": {
-	//			"hostname": "switch_a",
-	//			"login-banner": "Hello!"
-	//		}
-	//	}
-	//}`
-
 	tests := []gnmiSetTestCase{{
-		//	desc: "replace root",
-		//	op:   pb.UpdateResult_REPLACE,
-		//	val: &pb.TypedValue{
-		//		Value: &pb.TypedValue_JsonVal{
-		//			JsonVal: []byte(systemConfig),
-		//		}},
-		//	wantRetCode: codes.OK,
-		//}, {
 		desc: "replace a subtree",
 		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
-			elem: <name: "system" >
-			elem: <name: "clock" >
+			elem: <name: "configuration" >
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"config": {"timezone-name": "US/New York"}}`),
+				JsonVal: []byte(`{"version": "XVZ"}`),
 			},
 		},
-		ncFilter:    `<system><clock operation="replace"><config><timezone-name>US/New York</timezone-name></config></clock></system>`,
+		ncFilter:    `<configuration operation="replace"><version>XVZ</version></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a keyed list subtree",
 		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
-			elem: <name: "components" >
-			elem: <
-				name: "component"
-				key: <key: "name" value: "swpri1-1-1" >
-			>`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"config": {"name": "swpri1-1-1"}}`),
-			},
-		},
-		ncFilter:    `<components><component operation="replace"><name>swpri1-1-1</name><config><name>swpri1-1-1</name></config></component></components>`,
-		wantRetCode: codes.OK,
-	}, {
-		desc: "replace node with int type attribute in its precedent path",
-		op:   pb.UpdateResult_REPLACE,
-		textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "openflow" >
-			elem: <name: "controllers" >
-			elem: <
-				name: "controller"
-				key: <key: "name" value: "main" >
-			>
-			elem: <name: "connections" >
-			elem: <
-				name: "connection"
-				key: <key: "aux-id" value: "0" >
-			>
-			elem: <name: "config" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"address": "192.0.2.10", "aux-id": 0}`),
+				JsonVal: []byte(`{"max-sessions-per-connection": 8}`),
 			},
 		},
-		ncFilter:    `<system><openflow><controllers><controller><name>main</name><connections><connection><aux-id>0</aux-id><config operation="replace"><address>192.0.2.10</address><aux-id>0</aux-id></config></connection></connections></controller></controllers></openflow></system>`,
+		ncFilter:    `<configuration><system><services><ssh operation="replace"><max-sessions-per-connection>8</max-sessions-per-connection></ssh></services></system></configuration>`,
+		wantRetCode: codes.OK,
+	}, {
+		desc: "replace node with attribute in its precedent path",
+		op:   pb.UpdateResult_REPLACE,
+		textPbPath: `
+					elem: <name: "configuration" >
+					elem: <name: "interfaces" >
+					elem: <
+						name: "interface" 
+						key: <key: "name" value: "0/3/0" >
+					>
+					elem: <name: "otn-options" >
+					`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"rate": "otu4"}`),
+			},
+		},
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options operation="replace"><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a leaf node of int type",
 		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "openflow" >
-			elem: <name: "agent" >
-			elem: <name: "config" >
-			elem: <name: "backoff-interval" >
+			elem: <name: "services" >
+			elem: <name: "ssh" >
+			elem: <name: "max-sessions-per-connection" >
 		`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_IntVal{IntVal: 5},
+			Value: &pb.TypedValue_IntVal{IntVal: 64},
 		},
-		ncFilter:    `<system><openflow><agent><config><backoff-interval operation="replace">5</backoff-interval></config></agent></openflow></system>`,
+		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection operation="replace">64</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a leaf node of string type",
 		op:   pb.UpdateResult_REPLACE,
 		textPbPath: `
-			elem: <name: "system" >
-			elem: <name: "openflow" >
-			elem: <name: "agent" >
-			elem: <name: "config" >
-			elem: <name: "datapath-id" >
+			elem: <name: "configuration" >
+			elem: <name: "version" >
 		`,
 		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "00:16:3e:00:00:00:00:00"},
+			Value: &pb.TypedValue_StringVal{StringVal: "ABC"},
 		},
-		ncFilter:    `<system><openflow><agent><config><datapath-id operation="replace">00:16:3e:00:00:00:00:00</datapath-id></config></agent></openflow></system>`,
+		ncFilter:    `<configuration><version operation="replace">ABC</version></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace an non-existing leaf node",
