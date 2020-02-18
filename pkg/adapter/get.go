@@ -144,14 +144,17 @@ func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.
 func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
 
+	// eldesc is used to track the state of XML element decoding.
+	// The in-scope elements are held in a stack, with each element pointing to its parent.
 	type eldesc struct {
 		schema   *yang.Entry
 		value    interface{}
 		children map[string]interface{}
+		parent   *eldesc
 	}
+
 	top := make(map[string]interface{})
 	cureld := &eldesc{schema: a.model.schemaTreeRoot, children: top}
-	var stack []*eldesc
 
 	for {
 		tk, _ := dec.Token()
@@ -166,26 +169,27 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 			if cureld.schema != nil {
 				nschema = getChildSchema(v.Name.Local, cureld.schema)
 			}
-			stack = append(stack, cureld)
-			cureld = &eldesc{schema: nschema, children: make(map[string]interface{})}
+			cureld = &eldesc{schema: nschema, children: make(map[string]interface{}), parent: cureld}
 
 		case xml.EndElement:
-			preveld := cureld
-			l := len(stack)
-			cureld = stack[l-1]
-			stack = stack[:l-1]
-			if preveld.schema == nil {
+			// Pop the parent of the ending element from the stack, retaining a reference to the ending element.
+			endingElement := cureld
+			cureld = cureld.parent
+
+			// Nothing more to do if the ending element was not known in the schema.
+			if endingElement.schema == nil {
 				break
 			}
 
+			// Assign the value(s) from the ending element to its parent.
 			var val interface{}
-			if len(preveld.children) > 0 {
-				val = preveld.children
+			if len(endingElement.children) > 0 {
+				val = endingElement.children
 			} else {
-				val = preveld.value
+				val = endingElement.value
 			}
-			tag := preveld.schema.Name
-			if preveld.schema.IsList() || preveld.schema.IsLeafList() {
+			tag := endingElement.schema.Name
+			if endingElement.schema.IsList() || endingElement.schema.IsLeafList() {
 				if _, ok := cureld.children[tag]; !ok {
 					cureld.children[tag] = []interface{}{}
 				}
@@ -204,7 +208,7 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 			}
 
 		default:
-			log.Infof("Unexpected token type %s - %v", reflect.TypeOf(tk), tk)
+			log.Infof("Ignore unexpected token type %s - %v", reflect.TypeOf(tk), tk)
 		}
 	}
 }

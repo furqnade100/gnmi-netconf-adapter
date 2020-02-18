@@ -220,6 +220,19 @@ func TestGet(t *testing.T) {
 								"version": "ABC"
 
 					}`,
+		}, {
+			desc: "ignore unexpected xml elements in netconf",
+			textPbPath: `
+			elem: <name: "configuration" >
+		`,
+			ncFilter:    `<configuration></configuration>`,
+			ncResult:    `<configuration><version>ABC</version><!-- comment -->></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `{
+
+								"version": "ABC"
+
+					}`,
 		}}
 	for i := range tests {
 		td := tests[i]
