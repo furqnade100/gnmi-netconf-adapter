@@ -44,9 +44,9 @@ var (
 )
 
 func TestCapabilities(t *testing.T) {
-	s, err := NewAdapter(model, nil)
+	s, _ := NewAdapter(model, nil)
 
-	resp, err := s.Capabilities(nil, &pb.CapabilityRequest{})
+	resp, err := s.Capabilities(context.Background(), &pb.CapabilityRequest{})
 	if err != nil {
 		t.Fatalf("got error %v, want nil", err)
 	}
