@@ -8,5 +8,5 @@ gnmi_cli  \
 -client_key  ../pkg/certs/client1.key  \
 -client_crt  ../pkg/certs/client1.crt    \
 -ca_crt ../pkg/certs/onfca.crt  \
--set -proto "$(cat set.version.proto)"
+-set -proto "$(cat set.version.gnmi)"
 ````
