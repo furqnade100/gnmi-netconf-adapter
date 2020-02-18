@@ -525,10 +525,10 @@ func TestReplace(t *testing.T) {
 					`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"rate": "otu4"}`),
+				JsonVal: []byte(`{"rate": "otu4", "laser-enable": ""}`),
 			},
 		},
-		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options operation="replace"><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
+		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options operation="replace"><laser-enable></laser-enable><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a leaf node of int type",
