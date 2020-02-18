@@ -135,6 +135,20 @@ func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.
 	return a.buildGnmiNotification(entry, requestedValue, path, prefix)
 }
 
+// eldesc is used to track the state of XML element decoding.
+// The in-scope elements are held in a stack, with each element pointing to its parent.
+type eldesc struct {
+	// schema entry corresponding to this element, (nil -> schema does not include it)
+	schema *yang.Entry
+	// map of child values for the container, keyed by child leaf/container name.
+	// If the child is a simple container, the value will be another map[string] interface{}
+	// If the child is a simple list, the value will be its scalar value.
+	// If the child is a list, the value will be an array of map[string] interface{}
+	children map[string]interface{}
+	// reference to the descriptor for this element's parent
+	parent *eldesc
+}
+
 // netconfXMLtoMap converts a well-formed netconf XML response to a map.
 // map keys are element names, and values are either
 // - scalars for leaf values
@@ -143,15 +157,6 @@ func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.
 // If netconf elements are not defined in the schema, they are not included in the map.
 func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 	dec := xml.NewDecoder(strings.NewReader(result))
-
-	// eldesc is used to track the state of XML element decoding.
-	// The in-scope elements are held in a stack, with each element pointing to its parent.
-	type eldesc struct {
-		schema   *yang.Entry
-		value    interface{}
-		children map[string]interface{}
-		parent   *eldesc
-	}
 
 	top := make(map[string]interface{})
 	cureld := &eldesc{schema: a.model.schemaTreeRoot, children: top}
@@ -171,45 +176,55 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 			}
 			cureld = &eldesc{schema: nschema, children: make(map[string]interface{}), parent: cureld}
 
-		case xml.EndElement:
-			// Pop the parent of the ending element from the stack, retaining a reference to the ending element.
-			endingElement := cureld
-			cureld = cureld.parent
-
-			// Nothing more to do if the ending element was not known in the schema.
-			if endingElement.schema == nil {
+			if nschema == nil {
+				// Schema does not recognise this element name.
 				break
 			}
 
-			// Assign the value(s) from the ending element to its parent.
-			var val interface{}
-			if len(endingElement.children) > 0 {
-				val = endingElement.children
-			} else {
-				val = endingElement.value
-			}
-			tag := endingElement.schema.Name
-			if endingElement.schema.IsList() || endingElement.schema.IsLeafList() {
-				if _, ok := cureld.children[tag]; !ok {
-					cureld.children[tag] = []interface{}{}
-				}
-				cureld.children[tag] = append(cureld.children[tag].([]interface{}), val)
-			} else {
-				cureld.children[tag] = val
-			}
+			linkNodeToParent(nschema, cureld)
+
+		case xml.EndElement:
+			// Pop the parent of the ending element from the stack
+			cureld = cureld.parent
 
 		case xml.CharData:
-			if cureld != nil {
-				if cureld.schema != nil {
-					if cureld.schema.IsLeaf() || cureld.schema.IsLeafList() {
-						cureld.value = getLeafValue(v, cureld.schema)
-					}
-				}
+			// Only interested in the character data for an element that corresponds to a leaf/leaf-list.
+			if cureld.schema != nil && (cureld.schema.IsLeaf() || cureld.schema.IsLeafList()) {
+				addLeafValueToParent(v, cureld)
 			}
 
 		default:
 			log.Infof("Ignore unexpected token type %s - %v", reflect.TypeOf(tk), tk)
 		}
+	}
+}
+
+// addLeafValueToParent adds a leaf value to the parent container's map.
+func addLeafValueToParent(input xml.CharData, cureld *eldesc) {
+	value := getLeafValue(input, cureld.schema)
+	tag := cureld.schema.Name
+	if cureld.schema.IsLeaf() {
+		cureld.parent.children[tag] = value
+	} else {
+		cureld.parent.children[tag] = append(cureld.parent.children[tag].([]interface{}), value)
+	}
+}
+
+// linkNodeToParent links a container/leaf to its parent node.
+func linkNodeToParent(nschema *yang.Entry, cureld *eldesc) {
+	tag := nschema.Name
+	if nschema.IsList() || nschema.IsLeafList() {
+		if _, ok := cureld.parent.children[tag]; !ok {
+			// Create an array to hold the values for this list/leaf-list.
+			cureld.parent.children[tag] = []interface{}{}
+		}
+		if nschema.IsList() {
+			// Append this container's value map to the parent's list for this tag.
+			cureld.parent.children[tag] = append(cureld.parent.children[tag].([]interface{}), cureld.children)
+		}
+	} else if nschema.IsContainer() {
+		// Store this container's value map in the parent's map, keyed by this container's tag.
+		cureld.parent.children[tag] = cureld.children
 	}
 }
 
