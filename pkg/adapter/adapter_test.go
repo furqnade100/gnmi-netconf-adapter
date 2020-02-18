@@ -76,10 +76,12 @@ func TestGet(t *testing.T) {
 		{
 			desc: "get valid but non-existing node",
 			textPbPath: `
+			elem: <name: "configuration" >
 			elem: <name: "system" >
-			elem: <name: "clock" >
+			elem: <name: "services" >
 		`,
-			ncFilter:    `<system><clock></clock></system>`,
+			modelData:   modeldata.ModelData,
+			ncFilter:    `<configuration><system><services></services></system></configuration>`,
 			wantRetCode: codes.NotFound,
 		}, {
 			desc:        "root node",
@@ -205,6 +207,19 @@ func TestGet(t *testing.T) {
 			ncResult:    `<configuration><version>ABC</version></configuration>`,
 			wantRetCode: codes.OK,
 			wantRespVal: `ABC`,
+		}, {
+			desc: "ignore nodes not in the schema",
+			textPbPath: `
+			elem: <name: "configuration" >
+		`,
+			ncFilter:    `<configuration></configuration>`,
+			ncResult:    `<configuration><version>ABC</version><notintheschema>XYZ</notintheschema></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `{
+
+								"version": "ABC"
+
+					}`,
 		}}
 	for i := range tests {
 		td := tests[i]
@@ -475,14 +490,13 @@ func TestReplace(t *testing.T) {
 			elem: <name: "configuration" >
 			elem: <name: "system" >
 			elem: <name: "services" >
-			elem: <name: "ssh" >
 		`,
 		val: &pb.TypedValue{
 			Value: &pb.TypedValue_JsonVal{
-				JsonVal: []byte(`{"max-sessions-per-connection": 8}`),
+				JsonVal: []byte(`{"ssh": {"max-sessions-per-connection": 8}}`),
 			},
 		},
-		ncFilter:    `<configuration><system><services><ssh operation="replace"><max-sessions-per-connection>8</max-sessions-per-connection></ssh></services></system></configuration>`,
+		ncFilter:    `<configuration><system><services operation="replace"><ssh><max-sessions-per-connection>8</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace node with attribute in its precedent path",
