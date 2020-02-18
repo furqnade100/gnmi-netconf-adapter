@@ -83,7 +83,7 @@ func (a *Adapter) processPath(ctx context.Context, req *pb.GetRequest, path *pb.
 	}
 
 	// Convert the netconf response to a gNMI notification
-	return a.netconfValueToGnmi(entry, netconfTree, path, prefix)
+	return a.netconfValueToGnmi(entry, netconfTree, fullPath, prefix)
 }
 
 // pathToNetconfSubtree converts a gNMI path to an XML string holding an equivalent netconf subtree filter.

@@ -16,8 +16,11 @@ package gnmi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
+
+	assert "github.com/stretchr/testify/require"
 
 	"github.com/damianoneill/net/v2/netconf/ops/mocks"
 	"github.com/stretchr/testify/mock"
@@ -40,30 +43,49 @@ var (
 	model = NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"])
 )
 
+func TestCapabilities(t *testing.T) {
+	s, err := NewAdapter(model, nil)
+
+	resp, err := s.Capabilities(nil, &pb.CapabilityRequest{})
+	if err != nil {
+		t.Fatalf("got error %v, want nil", err)
+	}
+	if !reflect.DeepEqual(resp.GetSupportedModels(), model.modelData) {
+		t.Errorf("got supported models %v\nare not the same as\nmodel supported by the server %v", resp.GetSupportedModels(), model.modelData)
+	}
+	if !reflect.DeepEqual(resp.GetSupportedEncodings(), supportedEncodings) {
+		t.Errorf("got supported encodings %v\nare not the same as\nencodings supported by the server %v", resp.GetSupportedEncodings(), supportedEncodings)
+	}
+}
+
+type getTestCase struct {
+	desc        string
+	textPrefix  string
+	textPbPath  string
+	modelData   []*pb.ModelData
+	wantRetCode codes.Code
+	wantRespVal interface{}
+	ncFilter    interface{}
+	ncResponse  error
+	ncResult    string
+}
+
 func TestGet(t *testing.T) {
 
-	tests := []struct {
-		desc        string
-		textPbPath  string
-		modelData   []*pb.ModelData
-		wantRetCode codes.Code
-		wantRespVal interface{}
-		ncFilter    interface{}
-		ncResponse  error
-		ncResult    string
-	}{{
-		desc: "get valid but non-existing node",
-		textPbPath: `
+	tests := []*getTestCase{
+		{
+			desc: "get valid but non-existing node",
+			textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "clock" >
 		`,
-		ncFilter:    `<system><clock></clock></system>`,
-		wantRetCode: codes.NotFound,
-	}, {
-		desc:        "root node",
-		ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{
+			ncFilter:    `<system><clock></clock></system>`,
+			wantRetCode: codes.NotFound,
+		}, {
+			desc:        "root node",
+			ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `{
 						"configuration": {
 							"system": {
 								"services": {
@@ -74,22 +96,22 @@ func TestGet(t *testing.T) {
 							}
 						}
 					}`,
-	}, {
-		desc: "get non-enum type",
-		textPbPath: `
+		}, {
+			desc: "get non-enum type",
+			textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "system" >
 					elem: <name: "services" >
 					elem: <name: "ssh" >
 					elem: <name: "max-sessions-per-connection" >
 				`,
-		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection></max-sessions-per-connection></ssh></services></system></configuration>`,
-		ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
-		wantRetCode: codes.OK,
-		wantRespVal: int64(32),
-	}, {
-		desc: "get enum type",
-		textPbPath: `
+			ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection></max-sessions-per-connection></ssh></services></system></configuration>`,
+			ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: int64(32),
+		}, {
+			desc: "get enum type",
+			textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "interfaces" >
 					elem: <
@@ -99,17 +121,17 @@ func TestGet(t *testing.T) {
 					elem: <name: "otn-options" >
 					elem: <name: "rate" >
 				`,
-		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate></rate></otn-options></interface></interfaces></configuration>`,
-		ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
-		wantRetCode: codes.OK,
-		wantRespVal: "otu4",
-	}, {
-		desc:        "root child node",
-		textPbPath:  `elem: <name: "configuration" >`,
-		ncFilter:    `<configuration></configuration>`,
-		ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{
+			ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate></rate></otn-options></interface></interfaces></configuration>`,
+			ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: "otu4",
+		}, {
+			desc:        "root child node",
+			textPbPath:  `elem: <name: "configuration" >`,
+			ncFilter:    `<configuration></configuration>`,
+			ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `{
 						"system": {
 							"services": {
 								"ssh": {
@@ -118,25 +140,25 @@ func TestGet(t *testing.T) {
 							}
 						}
 					}`,
-	}, {
-		desc: "node with attribute",
-		textPbPath: `
+		}, {
+			desc: "node with attribute",
+			textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "interfaces" >
 					elem: <
 						name: "interface" 
 						key: <key: "name" value: "0/3/0" >
 					>`,
-		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name></interface></interfaces></configuration>`,
-		ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{
+			ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name></interface></interfaces></configuration>`,
+			ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `{
 						"name": "0/3/0",
 						"otn-options": { "rate": "otu4" }
 						}`,
-	}, {
-		desc: "node with attribute in its parent",
-		textPbPath: `
+		}, {
+			desc: "node with attribute in its parent",
+			textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "interfaces" >
 					elem: <
@@ -145,44 +167,62 @@ func TestGet(t *testing.T) {
 					>
 					elem: <name: "otn-options" >
 					`,
-		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options></otn-options></interface></interfaces></configuration>`,
-		ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
-		wantRetCode: codes.OK,
-		wantRespVal: `{"rate": "otu4" }`,
-	}, {
-		desc: "non-existing node: wrong path name",
-		textPbPath: `
+			ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options></otn-options></interface></interfaces></configuration>`,
+			ncResult:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options><rate>otu4</rate></otn-options></interface></interfaces></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `{"rate": "otu4" }`,
+		}, {
+			desc: "non-existing node: wrong path name",
+			textPbPath: `
 								elem: <name: "components" >
 								elem: <
 									name: "component"
 									key: <key: "foo" value: "swpri1-1-1" >
 								>
 								elem: <name: "bar" >`,
-		wantRetCode: codes.NotFound,
-	}, {
-		desc:        "use of model data not supported",
-		modelData:   []*pb.ModelData{{}},
-		wantRetCode: codes.Unimplemented,
-	}}
-
+			wantRetCode: codes.NotFound,
+		}, {
+			desc:        "use of model data not supported",
+			modelData:   []*pb.ModelData{{}},
+			wantRetCode: codes.Unimplemented,
+		}, {
+			desc: "device fails to get",
+			textPbPath: `
+			elem: <name: "configuration" >
+		`,
+			ncFilter:    `<configuration></configuration>`,
+			ncResponse:  errors.New("netconf failure"),
+			wantRetCode: codes.Unknown,
+		}, {
+			desc: "prefxed path",
+			textPrefix: `
+			elem: <name: "configuration" >
+		`,
+			textPbPath: `
+			elem: <name: "version" >
+		`,
+			ncFilter:    `<configuration><version></version></configuration>`,
+			ncResult:    `<configuration><version>ABC</version></configuration>`,
+			wantRetCode: codes.OK,
+			wantRespVal: `ABC`,
+		}}
 	for i := range tests {
 		td := tests[i]
 		t.Run(td.desc, func(t *testing.T) {
-			runTestGet(t, td.textPbPath, td.wantRetCode, td.wantRespVal, td.modelData, td.ncFilter, td.ncResponse, td.ncResult)
+			runTestGet(t, td)
 		})
 	}
 }
 
 // runTestGet requests a path from the server by Get grpc call, and compares if
 // the return code and response value are expected.
-func runTestGet(t *testing.T, textPbPath string, wantRetCode codes.Code, wantRespVal interface{}, useModels []*pb.ModelData,
-	ncFilter interface{}, ncResponse error, ncResult string) {
+func runTestGet(t *testing.T, tc *getTestCase) {
 
 	mockNc := &mocks.OpSession{}
-	mockNc.On("GetConfigSubtree", ncFilter, ops.CandidateCfg, mock.Anything).Return(
+	mockNc.On("GetConfigSubtree", tc.ncFilter, ops.CandidateCfg, mock.Anything).Return(
 		func(filter interface{}, source string, result interface{}) error {
-			*result.(*string) = ncResult
-			return ncResponse
+			*result.(*string) = tc.ncResult
+			return tc.ncResponse
 		})
 
 	s, err := NewAdapter(model, mockNc)
@@ -192,13 +232,15 @@ func runTestGet(t *testing.T, textPbPath string, wantRetCode codes.Code, wantRes
 
 	// Send request
 	var pbPath pb.Path
-	if err := proto.UnmarshalText(textPbPath, &pbPath); err != nil {
+	if err := proto.UnmarshalText(tc.textPbPath, &pbPath); err != nil {
 		t.Fatalf("error in unmarshaling path: %v", err)
 	}
+
 	req := &pb.GetRequest{
 		Path:      []*pb.Path{&pbPath},
 		Encoding:  pb.Encoding_JSON,
-		UseModels: useModels,
+		UseModels: tc.modelData,
+		Prefix:    getPathPrefix(tc.textPrefix),
 	}
 	resp, err := s.Get(context.TODO(), req)
 
@@ -207,8 +249,8 @@ func runTestGet(t *testing.T, textPbPath string, wantRetCode codes.Code, wantRes
 	if !ok {
 		t.Fatal("got a non-grpc error from grpc call")
 	}
-	if gotRetStatus.Code() != wantRetCode {
-		t.Fatalf("got return code %v, want %v", gotRetStatus.Code(), wantRetCode)
+	if gotRetStatus.Code() != tc.wantRetCode {
+		t.Fatalf("got return code %v, want %v", gotRetStatus.Code(), tc.wantRetCode)
 	}
 
 	// Check response value
@@ -234,21 +276,22 @@ func runTestGet(t *testing.T, textPbPath string, wantRetCode codes.Code, wantRes
 				t.Fatalf("error in unmarshaling JSON data to json container: %v", err)
 			}
 			var wantJSONStruct interface{}
-			if err := json.Unmarshal([]byte(wantRespVal.(string)), &wantJSONStruct); err != nil {
+			if err := json.Unmarshal([]byte(tc.wantRespVal.(string)), &wantJSONStruct); err != nil {
 				t.Fatalf("error in unmarshaling IETF JSON data to json container: %v", err)
 			}
-			wantRespVal = wantJSONStruct
+			tc.wantRespVal = wantJSONStruct
 		}
 	}
 
-	if !reflect.DeepEqual(gotVal, wantRespVal) {
-		t.Errorf("got: %v (%T),\nwant %v (%T)", gotVal, gotVal, wantRespVal, wantRespVal)
+	if !reflect.DeepEqual(gotVal, tc.wantRespVal) {
+		t.Errorf("got: %v (%T),\nwant %v (%T)", gotVal, gotVal, tc.wantRespVal, tc.wantRespVal)
 	}
 }
 
 type gnmiSetTestCase struct {
 	desc        string                    // description of test case.
 	op          pb.UpdateResult_Operation // operation type.
+	textPrefix  string                    // Optional path prefix
 	textPbPath  string                    // text format of gnmi Path proto.
 	val         *pb.TypedValue            // value for UPDATE/REPLACE operations. always nil for DELETE.
 	wantRetCode codes.Code                // grpc return code.
@@ -287,6 +330,34 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		ncFilter:    `<configuration><system><services><ssh operation="merge"><max-sessions-per-connection>16</max-sessions-per-connection></ssh></services></system></configuration>`,
+		wantRetCode: codes.OK,
+	}, {
+		desc: "device fails to update",
+		op:   pb.UpdateResult_UPDATE,
+		textPbPath: `
+			elem: <name: "configuration" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"version": "XVZ"}`),
+			},
+		},
+		ncFilter:    `<configuration operation="merge"><version>XVZ</version></configuration>`,
+		ncResponse:  errors.New("netconf failure"),
+		wantRetCode: codes.Unknown,
+	}, {
+		desc: "update with path prefix",
+		op:   pb.UpdateResult_UPDATE,
+		textPrefix: `
+			elem: <name: "configuration" >
+		`,
+		textPbPath: `
+			elem: <name: "version" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_StringVal{StringVal: "ABC"},
+		},
+		ncFilter:    `<configuration><version operation="merge">ABC</version></configuration>`,
 		wantRetCode: codes.OK,
 	}}
 
@@ -350,6 +421,27 @@ func TestDelete(t *testing.T) {
 					elem: <name: "otn-options" >
 					`,
 		ncFilter:    `<configuration><interfaces><interface><name>0/3/0</name><otn-options operation="delete"></otn-options></interface></interfaces></configuration>`,
+		wantRetCode: codes.OK,
+	}, {
+		desc: "device fails to delete",
+		op:   pb.UpdateResult_DELETE,
+		textPbPath: `
+			elem: <name: "configuration" >
+			elem: <name: "version" >
+		`,
+		ncFilter:    `<configuration><version operation="delete"></version></configuration>`,
+		ncResponse:  errors.New("netconf failure"),
+		wantRetCode: codes.Unknown,
+	}, {
+		desc: "delete with path prefix",
+		op:   pb.UpdateResult_DELETE,
+		textPrefix: `
+			elem: <name: "configuration" >
+		`,
+		textPbPath: `
+			elem: <name: "version" >
+		`,
+		ncFilter:    `<configuration><version operation="delete"></version></configuration>`,
 		wantRetCode: codes.OK,
 	}}
 
@@ -452,6 +544,34 @@ func TestReplace(t *testing.T) {
 			Value: &pb.TypedValue_StringVal{StringVal: "SECURE"},
 		},
 		wantRetCode: codes.NotFound,
+	}, {
+		desc: "device fails to replace",
+		op:   pb.UpdateResult_REPLACE,
+		textPbPath: `
+			elem: <name: "configuration" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_JsonVal{
+				JsonVal: []byte(`{"version": "XVZ"}`),
+			},
+		},
+		ncFilter:    `<configuration operation="replace"><version>XVZ</version></configuration>`,
+		ncResponse:  errors.New("netconf failure"),
+		wantRetCode: codes.Unknown,
+	}, {
+		desc: "replace with path prefix",
+		op:   pb.UpdateResult_REPLACE,
+		textPrefix: `
+			elem: <name: "configuration" >
+		`,
+		textPbPath: `
+			elem: <name: "version" >
+		`,
+		val: &pb.TypedValue{
+			Value: &pb.TypedValue_StringVal{StringVal: "ABC"},
+		},
+		ncFilter:    `<configuration><version operation="replace">ABC</version></configuration>`,
+		wantRetCode: codes.OK,
 	}}
 
 	for i := range tests {
@@ -477,14 +597,15 @@ func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 	if err := proto.UnmarshalText(tc.textPbPath, &pbPath); err != nil {
 		t.Fatalf("error in unmarshaling path: %v", err)
 	}
+
 	var req *pb.SetRequest
 	switch tc.op {
 	case pb.UpdateResult_DELETE:
-		req = &pb.SetRequest{Delete: []*pb.Path{&pbPath}}
+		req = &pb.SetRequest{Delete: []*pb.Path{&pbPath}, Prefix: getPathPrefix(tc.textPrefix)}
 	case pb.UpdateResult_REPLACE:
-		req = &pb.SetRequest{Replace: []*pb.Update{{Path: &pbPath, Val: tc.val}}}
+		req = &pb.SetRequest{Replace: []*pb.Update{{Path: &pbPath, Val: tc.val}}, Prefix: getPathPrefix(tc.textPrefix)}
 	case pb.UpdateResult_UPDATE:
-		req = &pb.SetRequest{Update: []*pb.Update{{Path: &pbPath, Val: tc.val}}}
+		req = &pb.SetRequest{Update: []*pb.Update{{Path: &pbPath, Val: tc.val}}, Prefix: getPathPrefix(tc.textPrefix)}
 	default:
 		t.Fatalf("invalid op type: %v", tc.op)
 	}
@@ -498,4 +619,21 @@ func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 	if gotRetStatus.Code() != tc.wantRetCode {
 		t.Fatalf("got return code %v, want %v\nerror message: %v", gotRetStatus.Code(), tc.wantRetCode, err)
 	}
+}
+
+func TestSubscribe(t *testing.T) {
+	s, _ := NewAdapter(model, nil)
+	// Currently a no-op
+	assert.Nil(t, s.Subscribe(nil))
+}
+
+func getPathPrefix(prefix string) *pb.Path {
+
+	var prefPath *pb.Path
+	if prefix != "" {
+		var pfx pb.Path
+		_ = proto.UnmarshalText(prefix, &pfx)
+		prefPath = &pfx
+	}
+	return prefPath
 }
