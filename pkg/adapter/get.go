@@ -46,7 +46,16 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
+	// Create a default request to deliver the complete tree if the supplied request is nil.
+	if req == nil {
+		req = &pb.GetRequest{
+			Path:     []*pb.Path{{}},
+			Encoding: pb.Encoding_JSON,
+		}
+	}
+
 	paths := req.GetPath()
+
 	notifications := make([]*pb.Notification, len(paths))
 
 	for i, path := range paths {
