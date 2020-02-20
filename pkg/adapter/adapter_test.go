@@ -59,7 +59,7 @@ func TestCapabilities(t *testing.T) {
 }
 
 type getTestCase struct {
-	nilReq      bool
+	nilPath     bool
 	desc        string
 	textPrefix  string
 	textPbPath  string
@@ -86,7 +86,7 @@ func TestGet(t *testing.T) {
 			wantRetCode: codes.NotFound,
 		}, {
 			desc:        "nil Request",
-			nilReq:      true,
+			nilPath:     true,
 			ncResult:    `<configuration><system><services><ssh><max-sessions-per-connection>32</max-sessions-per-connection></ssh></services></system></configuration>`,
 			wantRetCode: codes.OK,
 			wantRespVal: `{
@@ -275,20 +275,22 @@ func runTestGet(t *testing.T, tc *getTestCase) {
 		t.Fatalf("error in creating server: %v", err)
 	}
 
-	var req *pb.GetRequest
-	if !tc.nilReq {
-		var pbPath pb.Path
-		if err := proto.UnmarshalText(tc.textPbPath, &pbPath); err != nil {
+	pbPaths := []*pb.Path{}
+	if !tc.nilPath {
+		pbPath := &pb.Path{}
+		if err := proto.UnmarshalText(tc.textPbPath, pbPath); err != nil {
 			t.Fatalf("error in unmarshaling path: %v", err)
 		}
-
-		req = &pb.GetRequest{
-			Path:      []*pb.Path{&pbPath},
-			Encoding:  pb.Encoding_JSON,
-			UseModels: tc.modelData,
-			Prefix:    getPathPrefix(tc.textPrefix),
-		}
+		pbPaths = append(pbPaths, pbPath)
 	}
+
+	req := &pb.GetRequest{
+		Path:      pbPaths,
+		Encoding:  pb.Encoding_JSON,
+		UseModels: tc.modelData,
+		Prefix:    getPathPrefix(tc.textPrefix),
+	}
+
 	// Send request
 	resp, err := s.Get(context.TODO(), req)
 
