@@ -264,7 +264,7 @@ func TestGet(t *testing.T) {
 func runTestGet(t *testing.T, tc *getTestCase) {
 
 	mockNc := &mocks.OpSession{}
-	mockNc.On("GetConfigSubtree", tc.ncFilter, ops.CandidateCfg, mock.Anything).Return(
+	mockNc.On("GetConfigSubtree", tc.ncFilter, ops.RunningCfg, mock.Anything).Return(
 		func(filter interface{}, source string, result interface{}) error {
 			*result.(*string) = tc.ncResult
 			return tc.ncResponse
@@ -634,7 +634,7 @@ func TestReplace(t *testing.T) {
 func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 
 	mockNc := &mocks.OpSession{}
-	mockNc.On("EditConfigCfg", ops.CandidateCfg, tc.ncFilter).Return(tc.ncResponse)
+	mockNc.On("EditConfigCfg", ops.RunningCfg, tc.ncFilter).Return(tc.ncResponse)
 
 	s, err := NewAdapter(model, mockNc)
 	if err != nil {

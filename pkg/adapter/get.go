@@ -122,7 +122,7 @@ func pathToNetconfSubtree(path *pb.Path) interface{} {
 // response as an XML string.
 func (a *Adapter) executeGetConfig(filter interface{}, path *pb.Path) (string, error) {
 	result := ""
-	err := a.ncs.GetConfigSubtree(filter, ops.CandidateCfg, &result)
+	err := a.ncs.GetConfigSubtree(filter, ops.RunningCfg, &result)
 	if err != nil {
 		return "", status.Errorf(codes.Unknown, "failed to get config for %v %v", path, err)
 	}
