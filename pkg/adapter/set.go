@@ -38,6 +38,9 @@ func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 	prefix := req.GetPrefix()
 	var results []*pb.UpdateResult
 
+	// Execute operations in order.
+	// Reference: https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#34-modifying-state
+
 	// Execute Deletes
 	for _, path := range req.GetDelete() {
 		res, grpcStatusError := a.executeOperation(pb.UpdateResult_DELETE, prefix, path, nil)
@@ -189,12 +192,12 @@ func mapValue(entry *yang.Entry, inval *pb.TypedValue) (interface{}, error) {
 func mapOperation(op pb.UpdateResult_Operation) string {
 	opdesc := ""
 	switch op {
+	case pb.UpdateResult_DELETE:
+		opdesc = "delete"
 	case pb.UpdateResult_REPLACE:
 		opdesc = "replace"
 	case pb.UpdateResult_UPDATE:
 		opdesc = "merge"
-	case pb.UpdateResult_DELETE:
-		opdesc = "delete"
 	default:
 		panic(fmt.Sprintf("unexpected operation %s", op))
 	}

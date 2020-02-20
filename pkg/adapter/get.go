@@ -48,7 +48,7 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 
 	// Create a default path to deliver the complete tree if there are no supplied paths.
 	if len(req.Path) == 0 {
-		req.Path = []*pb.Path{&pb.Path{}}
+		req.Path = []*pb.Path{{}}
 	}
 
 	paths := req.GetPath()
@@ -132,6 +132,15 @@ func (a *Adapter) executeGetConfig(filter interface{}, path *pb.Path) (string, e
 // netconfValueToGnmi converts the netconf XML response to a gNMI notification.
 func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
 
+	// The conversion is a 3-step process:
+	// 1 - transform the netconf XML to a regular map, using the schema to create slices for lists and to convert
+	//     leaf values correctly.
+	// 2 - Extract the requested node from the map. Netconf will have returned the requested node with all its
+	//     antecedent nodes; the antecedents are not included in the gnmi response.
+	// 3 - Build the gnmi notification from the requested node.
+	// Note that the first two steps could be merged into a single operation, so that the netconf to transformation only
+	// took place for the requested node.
+
 	netconfMap := a.netconfXMLtoMap(result)
 
 	requestedValue, err := getRequestedNode(netconfMap, path)
@@ -199,8 +208,10 @@ func (a *Adapter) netconfXMLtoMap(result string) map[string]interface{} {
 				addLeafValueToParent(v, cureld)
 			}
 
-		default:
-			log.Infof("Ignore unexpected token type %s - %v", reflect.TypeOf(tk), tk)
+		case xml.ProcInst:
+		case xml.Comment:
+		case xml.Directive:
+			// None are expected but can be ignored if they are encountered.
 		}
 	}
 }
