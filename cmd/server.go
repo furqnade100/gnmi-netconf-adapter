@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net"
 	"strconv"
@@ -57,7 +58,7 @@ func init() {
 	key = serverCmd.Flags().String("key", "certs/localhost.key", "path to client private key")
 	cert = serverCmd.Flags().String("cert", "certs/localhost.crt", "path to client certificate")
 
-	port = serverCmd.Flags().Int("port", 10999, "port to listen")
+	port = serverCmd.Flags().Int("port", 11161, "port to listen")
 	isInsecure = serverCmd.Flags().Bool("insecure", false, "whether to enable skip verification")
 
 	deviceIP = serverCmd.Flags().String("device-ip", "10.228.63.5:830", "device ip address:port for NETCONF")
@@ -98,7 +99,7 @@ func RunGnmiServer(command *cobra.Command, args []string) {
 		log.Info(startedMsg)
 	})
 
-	log.Exitf("Error running Serve %v", err)
+	log.Exitf("Running Serve gave error=%v", err)
 
 }
 
@@ -112,7 +113,7 @@ func Serve(started func(string)) error {
 	tlsCfg := &tls.Config{}
 	clientCerts, err := tls.LoadX509KeyPair(*cert, *key)
 	if err != nil {
-		log.Info("Error loading certs", clientCerts, err)
+		return errors.Wrapf(err, "Couldn't load  X509 Key Pair using cert=%s and key=%s", *cert, *key)
 	}
 	tlsCfg.Certificates = []tls.Certificate{clientCerts}
 	tlsCfg.ClientAuth = tls.RequireAndVerifyClientCert
@@ -143,7 +144,7 @@ func getCertPool(CaPath string) *x509.CertPool {
 	certPool := x509.NewCertPool()
 	ca, err := ioutil.ReadFile(CaPath)
 	if err != nil {
-		log.Warning("could not read ", CaPath, err)
+		log.Warningf("could not read file at %s. Err is %v", CaPath, err)
 	}
 	if ok := certPool.AppendCertsFromPEM(ca); !ok {
 		log.Warning("failed to append CA certificates")
