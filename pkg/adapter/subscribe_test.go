@@ -11,15 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package gnmi
 
 import (
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"testing"
+
+	assert "github.com/stretchr/testify/require"
+
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
+	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
 )
 
-// Subscribe handle subscribe requests including POLL, STREAM, ONCE subscribe requests
-func (a *Adapter) Subscribe(stream pb.GNMI_SubscribeServer) error {
-	// TODO Implement...
-	return nil
+func TestSubscribe(t *testing.T) {
+	model = NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"])
+	s, _ := NewAdapter(model, nil)
+	// Currently a no-op
+	assert.Nil(t, s.Subscribe(nil))
 }
