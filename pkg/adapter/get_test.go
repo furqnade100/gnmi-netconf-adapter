@@ -275,12 +275,8 @@ func runTestGet(t *testing.T, tc *getTestCase) {
 
 	// Check return code
 	gotRetStatus, ok := status.FromError(err)
-	if !ok {
-		t.Fatal("got a non-grpc error from grpc call")
-	}
-	if gotRetStatus.Code() != tc.wantRetCode {
-		t.Fatalf("got return code %v, want %v", gotRetStatus.Code(), tc.wantRetCode)
-	}
+	assert.True(t, ok, "got a non-grpc error from grpc call")
+	assert.Equal(t, tc.wantRetCode, gotRetStatus.Code(), "Unexpected return code")
 
 	// Check response value
 	var gotVal interface{}
