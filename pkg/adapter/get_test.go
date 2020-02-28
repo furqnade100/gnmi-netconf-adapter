@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"testing"
 
+	assert "github.com/stretchr/testify/require"
+
 	"github.com/damianoneill/net/v2/netconf/ops/mocks"
 	"github.com/stretchr/testify/mock"
 
@@ -250,9 +252,7 @@ func runTestGet(t *testing.T, tc *getTestCase) {
 
 	model = NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"])
 	s, err := NewAdapter(model, mockNc)
-	if err != nil {
-		t.Fatalf("error in creating server: %v", err)
-	}
+	assert.NoError(t, err, "error in creating server: %v", err)
 
 	pbPaths := []*gnmi.Path{}
 	if !tc.nilPath {

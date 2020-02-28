@@ -18,6 +18,8 @@ import (
 	"reflect"
 	"testing"
 
+	assert "github.com/stretchr/testify/require"
+
 	"github.com/openconfig/gnmi/proto/gnmi"
 
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
@@ -25,7 +27,8 @@ import (
 )
 
 func TestCapabilities(t *testing.T) {
-	s, _ := NewAdapter(NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"]), nil)
+	s, err := NewAdapter(NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"]), nil)
+	assert.NoError(t, err, "error in creating server: %v", err)
 
 	resp, err := s.Capabilities(context.Background(), &gnmi.CapabilityRequest{})
 	if err != nil {

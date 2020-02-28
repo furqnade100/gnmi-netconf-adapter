@@ -18,6 +18,8 @@ import (
 	"errors"
 	"testing"
 
+	assert "github.com/stretchr/testify/require"
+
 	"github.com/damianoneill/net/v2/netconf/ops"
 	"github.com/damianoneill/net/v2/netconf/ops/mocks"
 
@@ -335,9 +337,7 @@ func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 	mockNc.On("EditConfigCfg", ops.RunningCfg, tc.ncFilter).Return(tc.ncResponse)
 
 	s, err := NewAdapter(model, mockNc)
-	if err != nil {
-		t.Fatalf("error in creating adapter: %v", err)
-	}
+	assert.NoError(t, err, "error in creating server: %v", err)
 
 	// Send request
 	var pbPath gnmi.Path

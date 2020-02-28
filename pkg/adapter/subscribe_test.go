@@ -24,7 +24,8 @@ import (
 
 func TestSubscribe(t *testing.T) {
 	model = NewModel(modeldata.ModelData, gostruct.SchemaTree["Device"])
-	s, _ := NewAdapter(model, nil)
+	s, err := NewAdapter(model, nil)
+	assert.NoError(t, err, "error in creating server: %v", err)
 	// Currently a no-op
 	assert.Nil(t, s.Subscribe(nil))
 }
