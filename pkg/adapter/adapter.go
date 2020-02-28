@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
-package gnmi
+// Package adapter implements a gnmi server that adapts to a netconf device.
+package adapter
 
 import (
 	"github.com/damianoneill/net/v2/netconf/ops"

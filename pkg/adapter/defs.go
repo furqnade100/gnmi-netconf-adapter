@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
-package gnmi
+// Package adapter implements a gnmi server that adapts to a netconf device.
+package adapter
 
 import (
 	"github.com/damianoneill/net/v2/netconf/ops"
 
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	gnmi "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -26,15 +26,15 @@ import (
 type ConfigCallback func(ygot.ValidatedGoStruct) error
 
 var (
-	supportedEncodings = []pb.Encoding{pb.Encoding_JSON}
+	supportedEncodings = []gnmi.Encoding{gnmi.Encoding_JSON}
 )
 
 // Adapter struct implements the interface of gnmi server. It supports Capabilities, Get, and Set APIs.
 // Typical usage:
 //  netconfSession, err := ops.NewSession(ctx, sshConfig, "10.228.63.5:830")
 //	g := grpc.NewServer()
-//	s, err := gnmi.NewAdapter(model, netconfSession)
-//	pb.NewServer(g, s)
+//	s, err := adapter.NewAdapter(model, netconfSession)
+//	gnmi.NewServer(g, s)
 //	reflection.Register(g)
 //	listen, err := net.Listen("tcp", ":8080")
 //	g.Serve(listen)

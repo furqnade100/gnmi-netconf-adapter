@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package gnmi
+package adapter
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
@@ -41,7 +41,7 @@ type getTestCase struct {
 	desc        string
 	textPrefix  string
 	textPbPath  string
-	modelData   []*pb.ModelData
+	modelData   []*gnmi.ModelData
 	wantRetCode codes.Code
 	wantRespVal interface{}
 	ncFilter    interface{}
@@ -180,7 +180,7 @@ func TestGet(t *testing.T) {
 			wantRetCode: codes.NotFound,
 		}, {
 			desc:        "use of model data not supported",
-			modelData:   []*pb.ModelData{{}},
+			modelData:   []*gnmi.ModelData{{}},
 			wantRetCode: codes.Unimplemented,
 		}, {
 			desc: "device fails to get",
@@ -254,18 +254,18 @@ func runTestGet(t *testing.T, tc *getTestCase) {
 		t.Fatalf("error in creating server: %v", err)
 	}
 
-	pbPaths := []*pb.Path{}
+	pbPaths := []*gnmi.Path{}
 	if !tc.nilPath {
-		pbPath := &pb.Path{}
+		pbPath := &gnmi.Path{}
 		if err := proto.UnmarshalText(tc.textPbPath, pbPath); err != nil {
 			t.Fatalf("error in unmarshaling path: %v", err)
 		}
 		pbPaths = append(pbPaths, pbPath)
 	}
 
-	req := &pb.GetRequest{
+	req := &gnmi.GetRequest{
 		Path:      pbPaths,
-		Encoding:  pb.Encoding_JSON,
+		Encoding:  gnmi.Encoding_JSON,
 		UseModels: tc.modelData,
 		Prefix:    getPathPrefix(tc.textPrefix),
 	}

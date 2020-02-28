@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
-package gnmi
+// Package adapter implements a gnmi server that adapts to a netconf device.
+package adapter
 
 import (
 	"bytes"
@@ -32,7 +32,7 @@ import (
 
 	"github.com/damianoneill/net/v2/netconf/ops"
 
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,7 +40,7 @@ import (
 )
 
 // Get implements the Get RPC in gNMI spec.
-func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
+func (a *Adapter) Get(ctx context.Context, req *gnmi.GetRequest) (*gnmi.GetResponse, error) {
 
 	if err := a.checkEncodingAndModel(req.GetEncoding(), req.GetUseModels()); err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
@@ -48,12 +48,12 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 
 	// Create a default path to deliver the complete tree if there are no supplied paths.
 	if len(req.Path) == 0 {
-		req.Path = []*pb.Path{{}}
+		req.Path = []*gnmi.Path{{}}
 	}
 
 	paths := req.GetPath()
 
-	notifications := make([]*pb.Notification, len(paths))
+	notifications := make([]*gnmi.Notification, len(paths))
 
 	for i, path := range paths {
 		n, err := a.processPath(ctx, req, path)
@@ -63,11 +63,11 @@ func (a *Adapter) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse,
 		notifications[i] = n
 	}
 
-	return &pb.GetResponse{Notification: notifications}, nil
+	return &gnmi.GetResponse{Notification: notifications}, nil
 }
 
 // Exexcutes a gNMI Get for a single path
-func (a *Adapter) processPath(ctx context.Context, req *pb.GetRequest, path *pb.Path) (*pb.Notification, error) {
+func (a *Adapter) processPath(ctx context.Context, req *gnmi.GetRequest, path *gnmi.Path) (*gnmi.Notification, error) {
 
 	// Resolve the full path using the prefix if there is one.
 	prefix := req.GetPrefix()
@@ -94,7 +94,7 @@ func (a *Adapter) processPath(ctx context.Context, req *pb.GetRequest, path *pb.
 
 // pathToNetconfSubtree converts a gNMI path to an XML string holding an equivalent netconf subtree filter.
 // If there are no elements in the path, nil is returned (meaning the complete tree is returned).
-func pathToNetconfSubtree(path *pb.Path) interface{} {
+func pathToNetconfSubtree(path *gnmi.Path) interface{} {
 
 	if len(path.Elem) == 0 {
 		return nil
@@ -120,7 +120,7 @@ func pathToNetconfSubtree(path *pb.Path) interface{} {
 
 // executeGetConfig issues a netconfig get-config request using the specified subtree filter, returning the
 // response as an XML string.
-func (a *Adapter) executeGetConfig(filter interface{}, path *pb.Path) (string, error) {
+func (a *Adapter) executeGetConfig(filter interface{}, path *gnmi.Path) (string, error) {
 	result := ""
 	err := a.ncs.GetConfigSubtree(filter, ops.RunningCfg, &result)
 	if err != nil {
@@ -130,7 +130,7 @@ func (a *Adapter) executeGetConfig(filter interface{}, path *pb.Path) (string, e
 }
 
 // netconfValueToGnmi converts the netconf XML response to a gNMI notification.
-func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
+func (a *Adapter) netconfValueToGnmi(entry *yang.Entry, result string, path *gnmi.Path, prefix *gnmi.Path) (*gnmi.Notification, error) {
 
 	// The conversion is a 3-step process:
 	// 1 - transform the netconf XML to a regular map, using the schema to create slices for lists and to convert
@@ -247,7 +247,7 @@ func linkNodeToParent(nschema *yang.Entry, cureld *eldesc) {
 
 // getRequestedNode delivers the node requested by the specified gNMI path from the
 // input (a map delivered by the netconfXMLtoMap method)
-func getRequestedNode(input interface{}, path *pb.Path) (interface{}, error) {
+func getRequestedNode(input interface{}, path *gnmi.Path) (interface{}, error) {
 
 	for _, elem := range path.Elem {
 		var nextmap map[string]interface{}
@@ -269,37 +269,37 @@ func getRequestedNode(input interface{}, path *pb.Path) (interface{}, error) {
 }
 
 // buildGnmiNotification maps the netconf returned value to a gNMI notification
-func (a *Adapter) buildGnmiNotification(entry *yang.Entry, requestedValue interface{}, path *pb.Path, prefix *pb.Path) (*pb.Notification, error) {
+func (a *Adapter) buildGnmiNotification(entry *yang.Entry, requestedValue interface{}, path *gnmi.Path, prefix *gnmi.Path) (*gnmi.Notification, error) {
 
 	if entry.IsLeaf() {
 		val, err := value.FromScalar(reflect.ValueOf(&requestedValue).Elem().Interface())
 		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("leaf node %v does not contain a scalar type value: %v", path, err))
 		}
-		return notification(prefix, &pb.Update{Path: path, Val: val}), nil
+		return notification(prefix, &gnmi.Update{Path: path, Val: val}), nil
 	}
 	if entry.IsDir() {
 		jsonDump, err := json.Marshal(requestedValue)
 		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("error in marshaling %s JSON tree to bytes: %v", "Internal", err))
 		}
-		return notification(prefix, &pb.Update{Path: path, Val: &pb.TypedValue{Value: &pb.TypedValue_JsonVal{JsonVal: jsonDump}}}), nil
+		return notification(prefix, &gnmi.Update{Path: path, Val: &gnmi.TypedValue{Value: &gnmi.TypedValue_JsonVal{JsonVal: jsonDump}}}), nil
 	}
 	panic(fmt.Sprintf("unexpected schema entry type %s", entry.Name))
 }
 
 // notification returns a new Notification with the specified prefix, update and the current time.
-func notification(prefix *pb.Path, update *pb.Update) *pb.Notification {
-	return &pb.Notification{
+func notification(prefix *gnmi.Path, update *gnmi.Update) *gnmi.Notification {
+	return &gnmi.Notification{
 		Timestamp: time.Now().UnixNano(),
 		Prefix:    prefix,
-		Update:    []*pb.Update{update},
+		Update:    []*gnmi.Update{update},
 	}
 }
 
 // getSchemaEntryForPath delivers the schema entry associated with the last element of the supplied path,
 // returning nil if the schema does not include the path.
-func (a *Adapter) getSchemaEntryForPath(path *pb.Path) *yang.Entry {
+func (a *Adapter) getSchemaEntryForPath(path *gnmi.Path) *yang.Entry {
 	entry := a.model.schemaTreeRoot
 	for _, elem := range path.Elem {
 		entry = entry.Dir[elem.Name]

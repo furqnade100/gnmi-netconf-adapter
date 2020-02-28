@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
-package gnmi
+// Package adapter implements a gnmi server that adapts to a netconf device.
+package adapter
 
 import (
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -26,12 +26,12 @@ type GoStructEnumData map[string]map[int64]ygot.EnumDefinition
 
 // Model contains the model data and GoStruct information for the device to config.
 type Model struct {
-	modelData      []*pb.ModelData
+	modelData      []*gnmi.ModelData
 	schemaTreeRoot *yang.Entry
 }
 
 // NewModel returns an instance of Model struct.
-func NewModel(m []*pb.ModelData, r *yang.Entry) *Model {
+func NewModel(m []*gnmi.ModelData, r *yang.Entry) *Model {
 	return &Model{
 		modelData:      m,
 		schemaTreeRoot: r,

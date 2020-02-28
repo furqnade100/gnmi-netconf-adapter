@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
-package gnmi
+// Package adapter implements a gnmi server that adapts to a netconf device.
+package adapter
 
 import (
 	"bytes"
@@ -26,24 +26,24 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 
 	"github.com/damianoneill/net/v2/netconf/ops"
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmi/value"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // Set implements the Set RPC in gNMI spec.
-func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
+func (a *Adapter) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetResponse, error) {
 
 	prefix := req.GetPrefix()
-	var results []*pb.UpdateResult
+	var results []*gnmi.UpdateResult
 
 	// Execute operations in order.
 	// Reference: https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-specification.md#34-modifying-state
 
 	// Execute Deletes
 	for _, path := range req.GetDelete() {
-		res, grpcStatusError := a.executeOperation(pb.UpdateResult_DELETE, prefix, path, nil)
+		res, grpcStatusError := a.executeOperation(gnmi.UpdateResult_DELETE, prefix, path, nil)
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
@@ -52,7 +52,7 @@ func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 
 	// Execute Replaces
 	for _, upd := range req.GetReplace() {
-		res, grpcStatusError := a.executeOperation(pb.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
+		res, grpcStatusError := a.executeOperation(gnmi.UpdateResult_REPLACE, prefix, upd.GetPath(), upd.GetVal())
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
@@ -61,21 +61,21 @@ func (a *Adapter) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse,
 
 	// Execute Updates
 	for _, upd := range req.GetUpdate() {
-		res, grpcStatusError := a.executeOperation(pb.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
+		res, grpcStatusError := a.executeOperation(gnmi.UpdateResult_UPDATE, prefix, upd.GetPath(), upd.GetVal())
 		if grpcStatusError != nil {
 			return nil, grpcStatusError
 		}
 		results = append(results, res)
 	}
 
-	return &pb.SetResponse{
+	return &gnmi.SetResponse{
 		Prefix:   prefix,
 		Response: results,
 	}, nil
 }
 
 // executeOperation executes a gNMI Set operation mapping it to a netconf edit-config operation.
-func (a *Adapter) executeOperation(op pb.UpdateResult_Operation, prefix, path *pb.Path, val *pb.TypedValue) (*pb.UpdateResult, error) {
+func (a *Adapter) executeOperation(op gnmi.UpdateResult_Operation, prefix, path *gnmi.Path, val *gnmi.TypedValue) (*gnmi.UpdateResult, error) {
 
 	request, err := a.gnmiToNetconfOperation(op, prefix, path, val)
 	if err != nil {
@@ -87,14 +87,14 @@ func (a *Adapter) executeOperation(op pb.UpdateResult_Operation, prefix, path *p
 		return nil, status.Errorf(codes.Unknown, "edit failed %s", err)
 	}
 
-	return &pb.UpdateResult{
+	return &gnmi.UpdateResult{
 		Path: path,
 		Op:   op,
 	}, nil
 }
 
 // gnmiToNetconfOperation maps a gNMI set operation to a netconfig edit-config operation.
-func (a *Adapter) gnmiToNetconfOperation(op pb.UpdateResult_Operation, prefix, path *pb.Path, inval *pb.TypedValue) (interface{}, error) {
+func (a *Adapter) gnmiToNetconfOperation(op gnmi.UpdateResult_Operation, prefix, path *gnmi.Path, inval *gnmi.TypedValue) (interface{}, error) {
 
 	fullPath := path
 	if prefix != nil {
@@ -111,7 +111,7 @@ func (a *Adapter) gnmiToNetconfOperation(op pb.UpdateResult_Operation, prefix, p
 
 	mapPathToNetconf(fullPath, op, enc)
 
-	if op != pb.UpdateResult_DELETE {
+	if op != gnmi.UpdateResult_DELETE {
 		err := a.mapSetValueToNetconf(enc, entry, inval)
 		if err != nil {
 			return nil, err
@@ -133,7 +133,7 @@ func (a *Adapter) gnmiToNetconfOperation(op pb.UpdateResult_Operation, prefix, p
 }
 
 // mapPathToNetconf converts a path for a gNMI Set operation to a netconf XML document using the supplied encoder.
-func mapPathToNetconf(fullPath *pb.Path, op pb.UpdateResult_Operation, enc *xml.Encoder) {
+func mapPathToNetconf(fullPath *gnmi.Path, op gnmi.UpdateResult_Operation, enc *xml.Encoder) {
 	for i, elem := range fullPath.Elem {
 		startEl := xml.StartElement{Name: xml.Name{Local: elem.Name}}
 
@@ -154,7 +154,7 @@ func mapPathToNetconf(fullPath *pb.Path, op pb.UpdateResult_Operation, enc *xml.
 
 // mapSetValueToNetconf converts a value defined by a Set update/replace operation to the corresponding
 // netconf XML elements, using the specified encoder.
-func (a *Adapter) mapSetValueToNetconf(enc *xml.Encoder, schema *yang.Entry, inval *pb.TypedValue) error {
+func (a *Adapter) mapSetValueToNetconf(enc *xml.Encoder, schema *yang.Entry, inval *gnmi.TypedValue) error {
 
 	editValue, err := mapValue(schema, inval)
 	if err != nil {
@@ -171,7 +171,7 @@ func (a *Adapter) mapSetValueToNetconf(enc *xml.Encoder, schema *yang.Entry, inv
 // Convert the value supplied on a Set operation, delivering:
 // - a map for a container
 // - scalar value for a leaf.
-func mapValue(entry *yang.Entry, inval *pb.TypedValue) (interface{}, error) {
+func mapValue(entry *yang.Entry, inval *gnmi.TypedValue) (interface{}, error) {
 	var editValue interface{}
 	if entry.IsDir() {
 		editValue = make(map[string]interface{})
@@ -189,14 +189,14 @@ func mapValue(entry *yang.Entry, inval *pb.TypedValue) (interface{}, error) {
 	return editValue, nil
 }
 
-func mapOperation(op pb.UpdateResult_Operation) string {
+func mapOperation(op gnmi.UpdateResult_Operation) string {
 	opdesc := ""
 	switch op {
-	case pb.UpdateResult_DELETE:
+	case gnmi.UpdateResult_DELETE:
 		opdesc = "delete"
-	case pb.UpdateResult_REPLACE:
+	case gnmi.UpdateResult_REPLACE:
 		opdesc = "replace"
-	case pb.UpdateResult_UPDATE:
+	case gnmi.UpdateResult_UPDATE:
 		opdesc = "merge"
 	default:
 		panic(fmt.Sprintf("unexpected operation %s", op))

@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package gnmi
+package adapter
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata"
 	"github.com/onosproject/gnmi-netconf-adapter/pkg/adapter/modeldata/gostruct"
@@ -37,12 +37,12 @@ var (
 )
 
 type gnmiSetTestCase struct {
-	desc        string                    // description of test case.
-	op          pb.UpdateResult_Operation // operation type.
-	textPrefix  string                    // Optional path prefix
-	textPbPath  string                    // text format of gnmi Path proto.
-	val         *pb.TypedValue            // value for UPDATE/REPLACE operations. always nil for DELETE.
-	wantRetCode codes.Code                // grpc return code.
+	desc        string                      // description of test case.
+	op          gnmi.UpdateResult_Operation // operation type.
+	textPrefix  string                      // Optional path prefix
+	textPbPath  string                      // text format of gnmi Path proto.
+	val         *gnmi.TypedValue            // value for UPDATE/REPLACE operations. always nil for DELETE.
+	wantRetCode codes.Code                  // grpc return code.
 	ncFilter    interface{}
 	ncResponse  error
 }
@@ -50,7 +50,7 @@ type gnmiSetTestCase struct {
 func TestUpdate(t *testing.T) {
 	tests := []gnmiSetTestCase{{
 		desc: "update leaf node",
-		op:   pb.UpdateResult_UPDATE,
+		op:   gnmi.UpdateResult_UPDATE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "system" >
@@ -58,22 +58,22 @@ func TestUpdate(t *testing.T) {
 			elem: <name: "ssh" >
 			elem: <name: "max-sessions-per-connection" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_IntVal{IntVal: 64},
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_IntVal{IntVal: 64},
 		},
 		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection operation="merge">64</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "update subtree",
-		op:   pb.UpdateResult_UPDATE,
+		op:   gnmi.UpdateResult_UPDATE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "system" >
 			elem: <name: "services" >
 			elem: <name: "ssh" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonVal{
 				JsonVal: []byte(`{"max-sessions-per-connection": 16}`),
 			},
 		},
@@ -81,12 +81,12 @@ func TestUpdate(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "device fails to update",
-		op:   pb.UpdateResult_UPDATE,
+		op:   gnmi.UpdateResult_UPDATE,
 		textPbPath: `
 			elem: <name: "configuration" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonVal{
 				JsonVal: []byte(`{"version": "XVZ"}`),
 			},
 		},
@@ -95,15 +95,15 @@ func TestUpdate(t *testing.T) {
 		wantRetCode: codes.Unknown,
 	}, {
 		desc: "update with path prefix",
-		op:   pb.UpdateResult_UPDATE,
+		op:   gnmi.UpdateResult_UPDATE,
 		textPrefix: `
 			elem: <name: "configuration" >
 		`,
 		textPbPath: `
 			elem: <name: "version" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "ABC"},
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_StringVal{StringVal: "ABC"},
 		},
 		ncFilter:    `<configuration><version operation="merge">ABC</version></configuration>`,
 		wantRetCode: codes.OK,
@@ -120,7 +120,7 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	tests := []gnmiSetTestCase{{
 		desc: "delete leaf node",
-		op:   pb.UpdateResult_DELETE,
+		op:   gnmi.UpdateResult_DELETE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "system" >
@@ -132,7 +132,7 @@ func TestDelete(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete sub-tree",
-		op:   pb.UpdateResult_DELETE,
+		op:   gnmi.UpdateResult_DELETE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "system" >
@@ -143,7 +143,7 @@ func TestDelete(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete leaf node with attribute in its precedent path",
-		op:   pb.UpdateResult_DELETE,
+		op:   gnmi.UpdateResult_DELETE,
 		textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "interfaces" >
@@ -158,7 +158,7 @@ func TestDelete(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "delete sub-tree with attribute in its precedent path",
-		op:   pb.UpdateResult_DELETE,
+		op:   gnmi.UpdateResult_DELETE,
 		textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "interfaces" >
@@ -172,7 +172,7 @@ func TestDelete(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "device fails to delete",
-		op:   pb.UpdateResult_DELETE,
+		op:   gnmi.UpdateResult_DELETE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "version" >
@@ -182,7 +182,7 @@ func TestDelete(t *testing.T) {
 		wantRetCode: codes.Unknown,
 	}, {
 		desc: "delete with path prefix",
-		op:   pb.UpdateResult_DELETE,
+		op:   gnmi.UpdateResult_DELETE,
 		textPrefix: `
 			elem: <name: "configuration" >
 		`,
@@ -205,12 +205,12 @@ func TestReplace(t *testing.T) {
 
 	tests := []gnmiSetTestCase{{
 		desc: "replace a subtree",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "configuration" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonVal{
 				JsonVal: []byte(`{"version": "XVZ"}`),
 			},
 		},
@@ -218,14 +218,14 @@ func TestReplace(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a keyed list subtree",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "system" >
 			elem: <name: "services" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonVal{
 				JsonVal: []byte(`{"ssh": {"max-sessions-per-connection": 8}}`),
 			},
 		},
@@ -233,7 +233,7 @@ func TestReplace(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace node with attribute in its precedent path",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 					elem: <name: "configuration" >
 					elem: <name: "interfaces" >
@@ -243,8 +243,8 @@ func TestReplace(t *testing.T) {
 					>
 					elem: <name: "otn-options" >
 					`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonVal{
 				JsonVal: []byte(`{"rate": "otu4", "laser-enable": ""}`),
 			},
 		},
@@ -252,7 +252,7 @@ func TestReplace(t *testing.T) {
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a leaf node of int type",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "system" >
@@ -260,26 +260,26 @@ func TestReplace(t *testing.T) {
 			elem: <name: "ssh" >
 			elem: <name: "max-sessions-per-connection" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_IntVal{IntVal: 64},
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_IntVal{IntVal: 64},
 		},
 		ncFilter:    `<configuration><system><services><ssh><max-sessions-per-connection operation="replace">64</max-sessions-per-connection></ssh></services></system></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace a leaf node of string type",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "configuration" >
 			elem: <name: "version" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "ABC"},
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_StringVal{StringVal: "ABC"},
 		},
 		ncFilter:    `<configuration><version operation="replace">ABC</version></configuration>`,
 		wantRetCode: codes.OK,
 	}, {
 		desc: "replace an non-existing leaf node",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "system" >
 			elem: <name: "openflow" >
@@ -287,18 +287,18 @@ func TestReplace(t *testing.T) {
 			elem: <name: "config" >
 			elem: <name: "foo-bar" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "SECURE"},
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_StringVal{StringVal: "SECURE"},
 		},
 		wantRetCode: codes.NotFound,
 	}, {
 		desc: "device fails to replace",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPbPath: `
 			elem: <name: "configuration" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_JsonVal{
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_JsonVal{
 				JsonVal: []byte(`{"version": "XVZ"}`),
 			},
 		},
@@ -307,15 +307,15 @@ func TestReplace(t *testing.T) {
 		wantRetCode: codes.Unknown,
 	}, {
 		desc: "replace with path prefix",
-		op:   pb.UpdateResult_REPLACE,
+		op:   gnmi.UpdateResult_REPLACE,
 		textPrefix: `
 			elem: <name: "configuration" >
 		`,
 		textPbPath: `
 			elem: <name: "version" >
 		`,
-		val: &pb.TypedValue{
-			Value: &pb.TypedValue_StringVal{StringVal: "ABC"},
+		val: &gnmi.TypedValue{
+			Value: &gnmi.TypedValue_StringVal{StringVal: "ABC"},
 		},
 		ncFilter:    `<configuration><version operation="replace">ABC</version></configuration>`,
 		wantRetCode: codes.OK,
@@ -340,19 +340,19 @@ func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 	}
 
 	// Send request
-	var pbPath pb.Path
+	var pbPath gnmi.Path
 	if err := proto.UnmarshalText(tc.textPbPath, &pbPath); err != nil {
 		t.Fatalf("error in unmarshaling path: %v", err)
 	}
 
-	var req *pb.SetRequest
+	var req *gnmi.SetRequest
 	switch tc.op {
-	case pb.UpdateResult_DELETE:
-		req = &pb.SetRequest{Delete: []*pb.Path{&pbPath}, Prefix: getPathPrefix(tc.textPrefix)}
-	case pb.UpdateResult_REPLACE:
-		req = &pb.SetRequest{Replace: []*pb.Update{{Path: &pbPath, Val: tc.val}}, Prefix: getPathPrefix(tc.textPrefix)}
-	case pb.UpdateResult_UPDATE:
-		req = &pb.SetRequest{Update: []*pb.Update{{Path: &pbPath, Val: tc.val}}, Prefix: getPathPrefix(tc.textPrefix)}
+	case gnmi.UpdateResult_DELETE:
+		req = &gnmi.SetRequest{Delete: []*gnmi.Path{&pbPath}, Prefix: getPathPrefix(tc.textPrefix)}
+	case gnmi.UpdateResult_REPLACE:
+		req = &gnmi.SetRequest{Replace: []*gnmi.Update{{Path: &pbPath, Val: tc.val}}, Prefix: getPathPrefix(tc.textPrefix)}
+	case gnmi.UpdateResult_UPDATE:
+		req = &gnmi.SetRequest{Update: []*gnmi.Update{{Path: &pbPath, Val: tc.val}}, Prefix: getPathPrefix(tc.textPrefix)}
 	default:
 		t.Fatalf("invalid op type: %v", tc.op)
 	}
@@ -368,11 +368,11 @@ func runTestSet(t *testing.T, m *Model, tc gnmiSetTestCase) {
 	}
 }
 
-func getPathPrefix(prefix string) *pb.Path {
+func getPathPrefix(prefix string) *gnmi.Path {
 
-	var prefPath *pb.Path
+	var prefPath *gnmi.Path
 	if prefix != "" {
-		var pfx pb.Path
+		var pfx gnmi.Path
 		_ = proto.UnmarshalText(prefix, &pfx)
 		prefPath = &pfx
 	}

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gnmi
+package adapter
 
 import (
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // Subscribe handle subscribe requests including POLL, STREAM, ONCE subscribe requests
-func (a *Adapter) Subscribe(stream pb.GNMI_SubscribeServer) error {
+func (a *Adapter) Subscribe(stream gnmi.GNMI_SubscribeServer) error {
 	// TODO Implement...
 	return nil
 }

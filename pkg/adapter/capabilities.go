@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gnmi implements a gnmi server to mock a device with YANG models.
-package gnmi
+// Package adapter implements a gnmi server that adapts to a netconf device.
+package adapter
 
 import (
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // Capabilities returns supported encodings and supported models.
-func (a *Adapter) Capabilities(ctx context.Context, req *pb.CapabilityRequest) (*pb.CapabilityResponse, error) {
+func (a *Adapter) Capabilities(ctx context.Context, req *gnmi.CapabilityRequest) (*gnmi.CapabilityResponse, error) {
 	ver, err := getGNMIServiceVersion()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "error in getting gnmi service version: %v", err)
 	}
-	return &pb.CapabilityResponse{
+	return &gnmi.CapabilityResponse{
 		SupportedModels:    a.model.modelData,
 		SupportedEncodings: supportedEncodings,
 		GNMIVersion:        *ver,

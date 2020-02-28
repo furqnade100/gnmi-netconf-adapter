@@ -20,14 +20,14 @@
 package modeldata
 
 import (
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // This file is based on a modelplugin/Junos-19.3.1.8/modelmain.go file generated locally for JUNOS 19.3R1.8
 // JUNOS models and plugins will be incorporated into µONOS at a future date.
 
 // ModelData represents a subset of Junos-19.3R1.8
-var ModelData = []*pb.ModelData{
+var ModelData = []*gnmi.ModelData{
 	{Name: "junos-conf-interfaces", Organization: "Juniper", Version: "2019-01-01"},
 	{Name: "junos-conf-system", Organization: "Juniper", Version: "2019-01-01"},
 }
