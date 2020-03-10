@@ -1,21 +1,20 @@
-#Demo
+# Demo
 
-The GNMI CLI can be used to demo this `gnmi-netconf-adapter` proof-of-concept in a µONOS kind cluster.
+The GNMI CLI can be used to demo the `gnmi-netconf-adapter` proof-of-concept in a µONOS kind cluster.
 
 Some example proto files for gNMI requests are supplied in this folder.  
 
 Run adapter e.g. `onit  add gnmi-netconf-adapter   --name nc1428`
 
-Note: A described in [../README.md](../README.md), the device target in the gNMI request from `onos-config` is ignored and a single fixed device used by the adapter; you need access to it for this demo.
+Note: As described in [../README.md](../README.md), the device target in the gNMI request from `onos-config` is ignored and a single fixed device used by the adapter; you need access to that device from your host for this demo.
  
-We will describe options to use interact with the `gnmi-netconf-adapter`:
+We will describe options to interact with the `gnmi-netconf-adapter` for :
 1. GNMI CLI to onos-config from the µONOS CLI pod 
 2. GNMI CLI  (bypassing onos-config) direct to an exposed port on the adapter
 
 
 ## GNMI CLI to onos-config from the µONOS CLI pod 
-Refer to  onos-config's [gnmi.md](https://github.com/onosproject/onos-config/blob/master/docs/gnmi.md) for details.
- the examples below are specific to this adapter. 
+Refer to  onos-config's [gnmi.md](https://github.com/onosproject/onos-config/blob/master/docs/gnmi.md) for gnmi details; the examples below are specific to demoing the adapter. 
 
 Logon to CLI pod:
 ````
@@ -33,7 +32,7 @@ nc1428   nc1428:11161   19.3.1.8   GNMI: {Connectivity: REACHABLE, Channel: CONN
 ````
 
 Via onos-config retrieve a selected part of its model from the  `gnmi-netconf-adapter`. 
-Notice no value returned first time, as only read-only items stored in onos-conig after initial device discovery, and this demo is for config items only.
+Notice no value is returned first time, as only read-only items are stored by onos-conig after the initial device discovery, and this demo is for config items only.
 
 ````
  gnmi_cli -address onos-config:5150 -get \
