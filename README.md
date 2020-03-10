@@ -24,9 +24,7 @@ Note the current known limitations:
 - Subscribe is currently a no-op
 - Each request path generates a NETCONF request - there is no attempt to coalesce multiple gNMI paths into a single request
 - Set operations on the configuration root (i.e. without a path value) are currently not supported.
-- The target field in the gNMI request is currently ignored; a default NETCONF device is used. Likewise for credentials.
+- The target field in the gNMI request (from e.g. `onos-config`) is currently ignored; a default NETCONF device is used. Likewise for credentials.
 - onos-test needs updated with commands to support `gnmi-netconf-adapter`s. A pull request will be submitted. 
-- For testing with ONOS Config, a local copy of `junos.so.19.3.1.8` shared library was used. This YANG will be stored in µONOS and model generation automated.  A pull request will be submitted.
+- For testing with onos-config, a local copy of the JUNOS model was used. This YANG will be stored in µONOS `config-models` and model generation automated.  A pull request will be submitted.
 - Integration testing with ONOS Config is work in progress.
-- The model is generated with a modified version of `ygot`.  A `ygot` pull request  will be submitted. See https://github.com/openconfig/goyang/issues/112 
-- onos-topo mandates that the device version complies with `^(\d+\.\d+\.\d+)$` regular expression. We've loosened this to `^(\d+(\.\d+){0,3})$` to handle JUNOS numbering. A pull request will be submitted.
