@@ -39,3 +39,6 @@ images-push: images $(DOCKER_LOGIN) ; $(info $(M) pushing images...) @ ## push d
 kind: images ; $(info $(M) add images to kind cluster...) @ ## add images to kind (ADDITIONAL)
 	@if [ "`kind get clusters`" = '' ]; then echo "no kind cluster found" && exit 1; fi
 	kind load docker-image onosproject/$(PRJ_NAME):$(PRJ_VERSION)
+
+.PHONY: deploy
+deploy: build images images-push kind
