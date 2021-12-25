@@ -19,9 +19,7 @@ FROM alpine:3.11
 RUN apk add bash openssl curl libc6-compat
 ENV GNMI_PORT=10161
 ENV GNMI_INSECURE_PORT=11161
-ENV GNOI_PORT=50001
-ENV SIM_MODE=1
-ENV HOME=/home/devicesim
+ENV HOME=/home/gnmi-netconf-adapter
 RUN mkdir $HOME
 WORKDIR $HOME
 
