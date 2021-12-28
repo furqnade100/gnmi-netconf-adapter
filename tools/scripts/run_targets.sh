@@ -33,5 +33,3 @@ gnmi_target \
     -config $HOME/target_configs/typical_ofsw_config.json
     # -key $HOME/certs/$hostname.key \
     # -cert $HOME/certs/$hostname.crt \
-
-# ls certs/
