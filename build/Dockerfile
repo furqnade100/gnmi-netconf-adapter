@@ -1,10 +1,5 @@
 FROM onosproject/golang-build:v1 as build
 
-RUN cd $GOPATH \
-    && GO111MODULE=on go get -u \
-      github.com/google/gnxi/gnoi_target@6697a080bc2d3287d9614501a3298b3dcfea06df \
-      github.com/google/gnxi/gnoi_cert@6697a080bc2d3287d9614501a3298b3dcfea06df
-
 ENV ONOS_ADAPTER_ROOT=/go/src/github.com/onosproject/gnmi-netconf-adapter
 ENV CGO_ENABLED=0
 
@@ -31,15 +26,3 @@ COPY pkg/certs certs
 
 RUN chmod +x ./scripts/run_targets.sh
 CMD ["./scripts/run_targets.sh"]
-
-# FROM golang:alpine AS builder
-# ARG o
-# ENV o=${o:-out}
-# RUN apk add --no-cache make git
-# WORKDIR /workspace
-# COPY . .
-# RUN make build && cp /workspace/${o} /workspace/main
-
-# FROM alpine AS final
-# COPY --from=builder /workspace/main ./
-# CMD [ "./main", "server"]
