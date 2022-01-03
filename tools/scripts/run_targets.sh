@@ -31,5 +31,3 @@ gnmi_target \
     -ca $HOME/certs/onfca.crt \
     -alsologtostderr \
     -config $HOME/target_configs/typical_ofsw_config.json
-    # -key $HOME/certs/$hostname.key \
-    # -cert $HOME/certs/$hostname.crt \
