@@ -15,15 +15,20 @@
 package main
 
 import (
+	"time"
+
 	"github.com/google/gnxi/utils/credentials"
-	pb "github.com/openconfig/gnmi/proto/gnmi"
+	gnmi "github.com/openconfig/gnmi/proto/gnmi"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/Juniper/go-netconf/netconf"
 )
 
 // Get overrides the Get func of gnmi.Target to provide user auth.
-func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
+func (s *server) Get(ctx context.Context, req *gnmi.GetRequest) (*gnmi.GetResponse, error) {
 	msg, ok := credentials.AuthorizeUser(ctx)
 	if !ok {
 		log.Infof("denied a Get request: %v", msg)
@@ -31,5 +36,50 @@ func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, 
 	}
 
 	log.Infof("allowed a Get request: %v", msg)
-	return s.Server.Get(ctx, req)
+	// log.Infof("Incoming get request")
+
+	// log.Infof(req.String())
+
+	// var r = mm()
+	// log.Infof(r.Data)
+
+	// notifications := make([]*pb.Notification, len(req.GetPath()))
+	notifications := make([]*gnmi.Notification, 1)
+	prefix := req.GetPrefix()
+	ts := time.Now().UnixNano()
+
+	notifications[0] = &gnmi.Notification{
+		Timestamp: ts,
+		Prefix:    prefix,
+	}
+
+	resp := &gnmi.GetResponse{Notification: notifications}
+
+	return resp, nil
+
+	// return s.Server.Get(ctx, req)
+}
+
+func mm() *netconf.RPCReply {
+
+	sshConfig := &ssh.ClientConfig{
+		User:            "root",
+		Auth:            []ssh.AuthMethod{ssh.Password("")},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	s, err := netconf.DialSSH("192.168.0.1", sshConfig)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer s.Close()
+
+	// Sends raw XML
+	reply, err := s.Exec(netconf.MethodGetConfig("running"))
+	if err != nil {
+		panic(err)
+	}
+	return reply
 }
