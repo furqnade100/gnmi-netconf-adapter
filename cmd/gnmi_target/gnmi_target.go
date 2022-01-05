@@ -129,7 +129,7 @@ func mm() *netconf.RPCReply {
 	defer s.Close()
 
 	// Sends raw XML
-	// reply, err := s.Exec(netconf.MethodGetConfig("running"))
+	reply, err := s.Exec(netconf.MethodGetConfig("running"))
 
 	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
 	<interface>
@@ -141,7 +141,7 @@ func mm() *netconf.RPCReply {
 	</interface>
  </interfaces>`
 
-	reply, err := s.Exec(MethodEditConfig("running", changes))
+	// reply, err := s.Exec(MethodEditConfig("running", changes))
 	if err != nil {
 		panic(err)
 	}
