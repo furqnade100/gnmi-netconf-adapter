@@ -103,6 +103,7 @@ func main() {
 		log.Infof(r.Data)
 
 		log.Infof("Establishing connection")
+
 	}
 
 	log.Infof("Starting gNMI agent to serve on %s", *bindAddr)
@@ -128,9 +129,31 @@ func mm() *netconf.RPCReply {
 	defer s.Close()
 
 	// Sends raw XML
-	reply, err := s.Exec(netconf.MethodGetConfig("running"))
+	// reply, err := s.Exec(netconf.MethodGetConfig("running"))
+
+	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
+	<interface>
+	   <name>sw0p5</name>
+	   <max-sdu-table xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched">
+		  <queue-max-sdu>1500</queue-max-sdu>
+	   </max-sdu-table>
+	</interface>
+ </interfaces>`
+
+	reply, err := s.Exec(MethodEditConfig("running", changes))
 	if err != nil {
 		panic(err)
 	}
 	return reply
+}
+
+// MethodEditConfig files a NETCONF edit-config request with the remote host
+func MethodEditConfig(database string, dataXml string) netconf.RawMethod {
+	const editConfigXml = `<edit-config>
+	<target><%s/></target>
+	<default-operation>merge</default-operation>
+	<error-option>rollback-on-error</error-option>
+	<config>%s</config>
+	</edit-config>`
+	return netconf.RawMethod(fmt.Sprintf(editConfigXml, database, dataXml))
 }
