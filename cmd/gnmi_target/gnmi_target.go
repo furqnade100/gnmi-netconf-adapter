@@ -24,7 +24,9 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/Juniper/go-netconf/netconf"
 	"github.com/onosproject/onos-lib-go/pkg/logging"
+	"golang.org/x/crypto/ssh"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -99,4 +101,31 @@ func main() {
 		log.Fatalf("Failed to serve: %v", err)
 	}
 
+	var r = mm()
+	log.Infof(r.Data)
+
+}
+
+func mm() *netconf.RPCReply {
+
+	sshConfig := &ssh.ClientConfig{
+		User:            "root",
+		Auth:            []ssh.AuthMethod{ssh.Password("")},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	s, err := netconf.DialSSH("192.168.0.1", sshConfig)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer s.Close()
+
+	// Sends raw XML
+	reply, err := s.Exec(netconf.MethodGetConfig("running"))
+	if err != nil {
+		panic(err)
+	}
+	return reply
 }
