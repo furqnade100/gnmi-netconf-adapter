@@ -96,14 +96,19 @@ func main() {
 
 	}()
 
+	if flag.Lookup("insecure").Value.String() == "true" {
+		log.Infof("Initiating connection now")
+
+		var r = mm()
+		log.Infof(r.Data)
+
+		log.Infof("Establishing connection")
+	}
+
 	log.Infof("Starting gNMI agent to serve on %s", *bindAddr)
 	if err := g.Serve(listen); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
-
-	var r = mm()
-	log.Infof(r.Data)
-
 }
 
 func mm() *netconf.RPCReply {
