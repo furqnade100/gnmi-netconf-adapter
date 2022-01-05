@@ -129,19 +129,19 @@ func mm() *netconf.RPCReply {
 	defer s.Close()
 
 	// Sends raw XML
-	reply, err := s.Exec(netconf.MethodGetConfig("running"))
+	// reply, err := s.Exec(netconf.MethodGetConfig("running"))
 
 	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
 	<interface>
 	   <name>sw0p5</name>
 	   <max-sdu-table xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched">
 		  <traffic-class>0</traffic-class>
-		  <queue-max-sdu>1500</queue-max-sdu>
+		  <queue-max-sdu>1504</queue-max-sdu>
 	   </max-sdu-table>
 	</interface>
  </interfaces>`
 
-	// reply, err := s.Exec(MethodEditConfig("running", changes))
+	reply, err := s.Exec(MethodEditConfig("running", changes))
 	if err != nil {
 		panic(err)
 	}
