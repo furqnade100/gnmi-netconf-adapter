@@ -24,9 +24,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Juniper/go-netconf/netconf"
 	"github.com/onosproject/onos-lib-go/pkg/logging"
-	"golang.org/x/crypto/ssh"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -96,15 +94,17 @@ func main() {
 
 	}()
 
-	if flag.Lookup("insecure").Value.String() == "true" {
-		log.Infof("Initiating connection now")
+	// if flag.Lookup("insecure").Value.String() == "true" {
+	// 	log.Infof("Initiating connection now")
 
-		var r = mm()
-		log.Infof(r.Data)
+	// 	var r = mm()
+	// 	log.Infof(r.Data)
 
-		log.Infof("Establishing connection")
+	// 	log.Infof("Establishing connection")
 
-	}
+	// }
+
+	// log.Infof(sb.GetConfig("").Data)
 
 	log.Infof("Starting gNMI agent to serve on %s", *bindAddr)
 	if err := g.Serve(listen); err != nil {
@@ -112,49 +112,49 @@ func main() {
 	}
 }
 
-func mm() *netconf.RPCReply {
+// func mm() *netconf.RPCReply {
 
-	sshConfig := &ssh.ClientConfig{
-		User:            "root",
-		Auth:            []ssh.AuthMethod{ssh.Password("")},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
+// 	sshConfig := &ssh.ClientConfig{
+// 		User:            "root",
+// 		Auth:            []ssh.AuthMethod{ssh.Password("")},
+// 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+// 	}
 
-	s, err := netconf.DialSSH("192.168.0.1", sshConfig)
+// 	s, err := netconf.DialSSH("192.168.0.1", sshConfig)
 
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	defer s.Close()
+// 	defer s.Close()
 
-	// Sends raw XML
-	// reply, err := s.Exec(netconf.MethodGetConfig("running"))
+// 	// Sends raw XML
+// 	// reply, err := s.Exec(netconf.MethodGetConfig("running"))
 
-	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
-	<interface>
-	   <name>sw0p5</name>
-	   <max-sdu-table xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched">
-		  <traffic-class>0</traffic-class>
-		  <queue-max-sdu>1504</queue-max-sdu>
-	   </max-sdu-table>
-	</interface>
- </interfaces>`
+// 	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
+// 	<interface>
+// 	   <name>sw0p5</name>
+// 	   <max-sdu-table xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched">
+// 		  <traffic-class>0</traffic-class>
+// 		  <queue-max-sdu>1504</queue-max-sdu>
+// 	   </max-sdu-table>
+// 	</interface>
+//  </interfaces>`
 
-	reply, err := s.Exec(MethodEditConfig("running", changes))
-	if err != nil {
-		panic(err)
-	}
-	return reply
-}
+// 	reply, err := s.Exec(MethodEditConfig("running", changes))
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	return reply
+// }
 
-// MethodEditConfig files a NETCONF edit-config request with the remote host
-func MethodEditConfig(database string, dataXml string) netconf.RawMethod {
-	const editConfigXml = `<edit-config>
-	<target><%s/></target>
-	<default-operation>merge</default-operation>
-	<error-option>rollback-on-error</error-option>
-	<config>%s</config>
-	</edit-config>`
-	return netconf.RawMethod(fmt.Sprintf(editConfigXml, database, dataXml))
-}
+// // MethodEditConfig files a NETCONF edit-config request with the remote host
+// func MethodEditConfig(database string, dataXml string) netconf.RawMethod {
+// 	const editConfigXml = `<edit-config>
+// 	<target><%s/></target>
+// 	<default-operation>merge</default-operation>
+// 	<error-option>rollback-on-error</error-option>
+// 	<config>%s</config>
+// 	</edit-config>`
+// 	return netconf.RawMethod(fmt.Sprintf(editConfigXml, database, dataXml))
+// }

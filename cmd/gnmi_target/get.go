@@ -22,6 +22,8 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 )
 
 // Get overrides the Get func of gnmi.Target to provide user auth.
@@ -35,7 +37,9 @@ func (s *server) Get(ctx context.Context, req *gnmi.GetRequest) (*gnmi.GetRespon
 	log.Infof("allowed a Get request: %v", msg)
 	// log.Infof("Incoming get request")
 
-	// log.Infof(req.String())
+	if req.String() == "path:{target:\"*\"}" {
+		log.Infof(sb.GetConfig("").Data)
+	}
 
 	// notifications := make([]*pb.Notification, len(req.GetPath()))
 	notifications := make([]*gnmi.Notification, 1)
