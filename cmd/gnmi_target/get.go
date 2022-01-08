@@ -15,15 +15,12 @@
 package main
 
 import (
-	"time"
-
 	"github.com/google/gnxi/utils/credentials"
+	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 	gnmi "github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 )
 
 // Get overrides the Get func of gnmi.Target to provide user auth.
@@ -35,25 +32,13 @@ func (s *server) Get(ctx context.Context, req *gnmi.GetRequest) (*gnmi.GetRespon
 	}
 
 	log.Infof("allowed a Get request: %v", msg)
-	// log.Infof("Incoming get request")
 
-	if req.String() == "path:{target:\"*\"}" {
-		log.Infof(sb.GetConfig("").Data)
-	}
-
-	// notifications := make([]*pb.Notification, len(req.GetPath()))
-	notifications := make([]*gnmi.Notification, 1)
-	prefix := req.GetPrefix()
-	ts := time.Now().UnixNano()
-
-	notifications[0] = &gnmi.Notification{
-		Timestamp: ts,
-		Prefix:    prefix,
-	}
-
-	resp := &gnmi.GetResponse{Notification: notifications}
+	/**********************************************************
+	Implementation of data conversion should be initiated here.
+	***********************************************************/
+	// Example of data conversion initiation
+	resp := dataConv.Convert(req, "Get")
 
 	return resp, nil
-
 	// return s.Server.Get(ctx, req)
 }
