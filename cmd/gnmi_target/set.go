@@ -16,7 +16,7 @@ package main
 
 import (
 	"github.com/google/gnxi/utils/credentials"
-	gnmi "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
