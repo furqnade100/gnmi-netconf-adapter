@@ -9,6 +9,7 @@ import (
 var xmlBuilder strings.Builder
 
 func json2Xml(jsonString string) string {
+	log.Infof("Trying to convert json to xml now...")
 	xmlBuilder.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>")
 	xmlBuilder.WriteString("\n<root>")
 
