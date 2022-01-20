@@ -42,7 +42,7 @@ import (
 
 var log = logging.GetLogger("main")
 
-const test = "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface><name>sw0p5</name><max-sdu-table xmlns=\"urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched\"><traffic-class>0</traffic-class><queue-max-sdu></queue-max-sdu></max-sdu-table></interface></interfaces>"
+const test = "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>"
 
 func main() {
 	model := gnmi.NewModel(modeldata.ModelData,
