@@ -42,8 +42,6 @@ import (
 
 var log = logging.GetLogger("main")
 
-const test = "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>"
-
 func main() {
 	model := gnmi.NewModel(modeldata.ModelData,
 		reflect.TypeOf((*gostruct.Device)(nil)),
@@ -84,7 +82,6 @@ func main() {
 	reflection.Register(g)
 
 	sb.UpdateConfig("test")
-	log.Infof(sb.GetConfig(test).Data)
 
 	log.Infof("Starting gNMI agent to listen on %s", *bindAddr)
 	listen, err := net.Listen("tcp", *bindAddr)
