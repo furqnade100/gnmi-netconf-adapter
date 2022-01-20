@@ -28,8 +28,8 @@ func UpdateConfig(xmlChanges string) *netconf.RPCReply {
 	<interface>
 	   <name>sw0p5</name>
 	   <max-sdu-table xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched">
-	      <traffic-class>0</traffic-class>
-		  <queue-max-sdu>2000</queue-max-sdu>
+		  <traffic-class>0</traffic-class>
+		  <queue-max-sdu>500</queue-max-sdu>
 	   </max-sdu-table>
 	</interface>
  </interfaces>`
