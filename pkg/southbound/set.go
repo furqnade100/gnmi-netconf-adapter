@@ -1,5 +1,7 @@
 package southbound
 
+import "github.com/Juniper/go-netconf/netconf"
+
 /***********************************************
 Example of xml that updates a queue-max-sdu tag.
 ************************************************/
@@ -16,12 +18,22 @@ Example of xml that updates a queue-max-sdu tag.
 *	</interfaces>
  */
 
-const test = "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>"
-
 // Updates the configuration accoring to the input xml for the target "running"
-func UpdateConfig(xmlChanges string) {
+func UpdateConfig(xmlChanges string) *netconf.RPCReply {
 
 	//reply := sendRPCRequest(methodEditConfig("running", xmlChanges))
 	//reply := sendRPCRequest()
-	log.Infof(string(methodEditConfig("running", test)))
+
+	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
+	<interface>
+	   <name>sw0p5</name>
+	   <max-sdu-table xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched">
+		  <queue-max-sdu>2000</queue-max-sdu>
+	   </max-sdu-table>
+	</interface>
+ </interfaces>`
+
+	reply := sendRPCRequest(methodEditConfig("running", changes))
+
+	return reply
 }
