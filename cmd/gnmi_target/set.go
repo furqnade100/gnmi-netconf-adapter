@@ -16,6 +16,7 @@ package main
 
 import (
 	"github.com/google/gnxi/utils/credentials"
+	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -31,6 +32,7 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	}
 	log.Infof("allowed a Set request: %v", msg)
 
+	dataConv.Convert(req, "Set")
 	// log.Infof(req.String())
 
 	setResponse, err := s.Server.Set(ctx, req)
