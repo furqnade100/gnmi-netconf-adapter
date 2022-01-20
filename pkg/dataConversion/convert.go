@@ -5,8 +5,7 @@ import (
 
 	"github.com/onosproject/onos-lib-go/pkg/logging"
 	"github.com/openconfig/gnmi/proto/gnmi"
-
-	sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
+	//sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 )
 
 var log = logging.GetLogger("main")
@@ -18,17 +17,17 @@ func Convert(req *gnmi.GetRequest, typeOfRequest string) *gnmi.GetResponse {
 	Implementation of data conversion should be implemented here.
 	*************************************************************/
 	// Example of data conversion initiation
-	xmlRequest := json2Xml(req.String())
+	//xmlRequest := json2Xml(req.String())
 
 	var reply = ""
 
 	// Initiate southbound NETCONF client, sending the xml
-	switch typeOfRequest {
-	case "Get":
-		reply = sb.GetConfig(xmlRequest).Data
-	case "Set":
-		reply = sb.UpdateConfig(xmlRequest).Data
-	}
+	//switch typeOfRequest {
+	//case "Get":
+	//	reply = sb.GetConfig(xmlRequest).Data
+	//case "Set":
+	//	reply = sb.UpdateConfig(xmlRequest).Data
+	//}
 
 	// Logs the reply, before sending back the response a conversion from xml to json should be implemented.
 	log.Infof(reply)
