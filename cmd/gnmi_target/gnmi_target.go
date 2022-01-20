@@ -36,8 +36,7 @@ import (
 	"github.com/google/gnxi/utils/credentials"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
-
-	sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
+	//sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 )
 
 var log = logging.GetLogger("main")
@@ -81,7 +80,7 @@ func main() {
 	pb.RegisterGNMIServer(g, s)
 	reflection.Register(g)
 
-	sb.UpdateConfig("test")
+	//sb.UpdateConfig("test")
 
 	log.Infof("Starting gNMI agent to listen on %s", *bindAddr)
 	listen, err := net.Listen("tcp", *bindAddr)
