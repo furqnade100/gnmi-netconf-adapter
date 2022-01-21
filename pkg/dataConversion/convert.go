@@ -12,7 +12,7 @@ import (
 var log = logging.GetLogger("main")
 
 // Takes in a gnmi get request and returns a gnmi get response.
-func Convert(req *gnmi.GetRequest, typeOfRequest string) *gnmi.GetResponse {
+func Convert(req *gnmi.GetRequest) *gnmi.GetResponse {
 
 	/************************************************************
 	Implementation of data conversion should be implemented here.
@@ -23,12 +23,7 @@ func Convert(req *gnmi.GetRequest, typeOfRequest string) *gnmi.GetResponse {
 	var reply = ""
 
 	// Initiate southbound NETCONF client, sending the xml
-	switch typeOfRequest {
-	case "Get":
-		reply = sb.GetConfig(xmlRequest).Data
-	case "Set":
-		reply = sb.UpdateConfig(xmlRequest).Data
-	}
+	reply = sb.GetConfig(xmlRequest).Data
 
 	// Logs the reply, before sending back the response a conversion from xml to json should be implemented.
 	log.Infof(reply)

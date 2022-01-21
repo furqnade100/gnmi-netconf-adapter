@@ -38,7 +38,7 @@ func (s *server) Get(ctx context.Context, req *gnmi.GetRequest) (*gnmi.GetRespon
 	***********************************************************/
 	// Example of data conversion initiation
 	log.Infof("The incoming get request contains: %s", req.String())
-	resp := dataConv.Convert(req, "Get")
+	resp := dataConv.Convert(req)
 
 	return resp, nil
 	// return s.Server.Get(ctx, req)
