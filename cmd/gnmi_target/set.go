@@ -32,7 +32,7 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	}
 	log.Infof("allowed a Set request: %v", msg)
 
-	dataConv.Convert(req, "Set")
+	dataConv.Convert(req)
 	// log.Infof(req.String())
 
 	setResponse, err := s.Server.Set(ctx, req)
