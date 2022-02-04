@@ -1,7 +1,7 @@
 package dataConversion
 
 import (
-	sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
+	//sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 	"github.com/onosproject/onos-lib-go/pkg/logging"
 	"github.com/openconfig/gnmi/proto/gnmi"
 )
