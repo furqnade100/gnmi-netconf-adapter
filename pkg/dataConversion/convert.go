@@ -16,7 +16,7 @@ func Convert(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
 	*************************************************************/
 	// Example of data conversion initiations furqan updates
 	log.Infof(req.String())
-	xmlRequest := json2Xml(req.String())
+	/*xmlRequest := json2Xml(req.String())
 
 	var reply = ""
 
@@ -25,7 +25,7 @@ func Convert(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
 
 	// Logs the reply, before sending back the response a conversion from xml to json should be implemented.
 	log.Infof(reply)
-
+	*/
 	// Simulated response.
 	//notifications := make([]*gnmi.Notification, 1)
 	//prefix := req.GetPrefix()
