@@ -16,7 +16,7 @@ func json2Xml(jsonString string) string {
 	// Creating the maps for JSON
 	m := map[string]interface{}{}
 
-	// Parsing/Unmarshalling JSON encoding/json
+	// Parsing/Unmarshalling JSON encoding/json Furqan 
 	err := json.Unmarshal([]byte(jsonString), &m)
 	if err != nil {
 		panic(err)

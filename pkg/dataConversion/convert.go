@@ -14,7 +14,8 @@ func Convert(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
 	/************************************************************
 	Implementation of data conversion should be implemented here.
 	*************************************************************/
-	// Example of data conversion initiation
+	// Example of data conversion initiations furqan
+	log.Infof(gnmi.SetRequest.Data)
 	xmlRequest := json2Xml(req.String())
 
 	var reply = ""
