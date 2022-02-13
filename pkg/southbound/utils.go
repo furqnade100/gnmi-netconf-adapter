@@ -22,6 +22,7 @@ var log = logging.GetLogger("main")
 // Takes in an RPCMethod function and executes it, then returns the reply from the network device
 func sendRPCRequest(fn netconf.RPCMethod) *netconf.RPCReply {
 	//  Define config for connection to network device
+	log.Infof("sendRPC/sb/utils.go")
 	sshConfig := &ssh.ClientConfig{
 		User:            "root",
 		Auth:            []ssh.AuthMethod{ssh.Password("")},
@@ -52,5 +53,6 @@ func sendRPCRequest(fn netconf.RPCMethod) *netconf.RPCReply {
 // MethodEditConfig sends a NETCONF edit-config request to the network device
 func methodEditConfig(database string, dataXml string) netconf.RawMethod {
 
+	log.Infof("methodEditconfig/sb/utils.go")
 	return netconf.RawMethod(fmt.Sprintf(editConfigXml, database, dataXml))
 }
