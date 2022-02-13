@@ -16,7 +16,9 @@ package main
 
 import (
 	"github.com/google/gnxi/utils/credentials"
-	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
+	//dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
+	"fmt"
+
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -31,10 +33,21 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 		return nil, status.Error(codes.PermissionDenied, msg)
 	}
 	log.Infof("allowed a Set request: %v", msg)
-
-	dataConv.Convert(req)
+	//log.Infof("Allowed set req..")
+	log.Infof(req.String())
+	for _, upd := range req.GetUpdate() {
+		for i, e := range upd.GetPath().Elem {
+			fmt.Println(i, e.GetName())
+			fmt.Println(i, e.GetKey())
+		}
+		log.Infof(string(upd.GetVal().GetJsonIetfVal()))
+		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
+		//log.Infof(upd.getva)
+	}
+	//dataConv.Convert(req)
 	// log.Infof(req.String())
 
 	setResponse, err := s.Server.Set(ctx, req)
 	return setResponse, err
+	//	return nil, nil
 }
