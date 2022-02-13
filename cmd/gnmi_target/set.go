@@ -27,6 +27,7 @@ import (
 
 // Set overrides the Set func of gnmi.Target to provide user auth.
 func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetResponse, error) {
+	//checking pull behavior
 	msg, ok := credentials.AuthorizeUser(ctx)
 	if !ok {
 		log.Infof("denied a Set request: %v", msg)
