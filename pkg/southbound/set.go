@@ -36,7 +36,7 @@ func UpdateConfig(xmlChanges string) *netconf.RPCReply {
 	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
 	<interface>
 	   <name>sw0p5</name>
-	   <enabled?>false</enabled?>		  
+	   <enabled>false</enabled>		  
 	</interface>
 	</interfaces>`
 
