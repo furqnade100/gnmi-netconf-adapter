@@ -36,6 +36,7 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	log.Infof("allowed a Set request: %v", msg)
 	//log.Infof("Allowed set req..")
 
+	fmt.Println("ext number = ", len(req.GetExtension()))
 	for i, e := range req.GetExtension() {
 		fmt.Println(i, e.String())
 	}
