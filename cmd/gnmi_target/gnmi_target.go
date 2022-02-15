@@ -80,7 +80,7 @@ func main() {
 	pb.RegisterGNMIServer(g, s)
 	reflection.Register(g)
 
-	//adapter.Convert()
+	//adapter.Convert()g
 	sb.UpdateConfig("test")
 
 	log.Infof("Starting gNMI agent to listen on %s", *bindAddr)
