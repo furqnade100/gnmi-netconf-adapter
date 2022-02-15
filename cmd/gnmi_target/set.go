@@ -41,13 +41,24 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 		fmt.Println(i, e.String())
 	}
 
+	prefix := req.GetPrefix()
+
 	log.Infof(req.String())
 	for _, upd := range req.GetUpdate() {
 		for i, e := range upd.GetPath().Elem {
 			fmt.Println(i, e.GetName())
 			fmt.Println(i, e.GetKey())
 		}
-		log.Infof(string(upd.GetVal().GetJsonIetfVal()))
+
+		path := upd.GetPath()
+		fullPath := path
+		if prefix != nil {
+			fmt.Println("prefix exists")
+			fullPath = gnmiFullPath(prefix, path)
+		}
+		fmt.Println(fullPath)
+
+		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
 		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
 		//log.Infof(upd.getva)
 	}
@@ -58,4 +69,12 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	setResponse, err := s.Server.Set(ctx, req)
 	return setResponse, err
 	//	return nil, nil
+}
+
+func gnmiFullPath(prefix, path *gnmi.Path) *gnmi.Path {
+	fullPath := &gnmi.Path{Origin: path.Origin}
+	if path.GetElem() != nil {
+		fullPath.Elem = append(prefix.GetElem(), path.GetElem()...)
+	}
+	return fullPath
 }
