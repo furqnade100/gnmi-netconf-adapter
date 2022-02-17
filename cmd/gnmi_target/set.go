@@ -59,8 +59,8 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 		// 	fmt.Println("prefix exists")
 		// 	fullPath = gnmiFullPath(prefix, path)
 		// }
-		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
-		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
+		log.Infof("JSON val: ", string(upd.GetVal().GetJsonIetfVal()))
+		log.Infof("simple val: ", upd.GetVal().GetStringVal())
 		//log.Infof(upd.getva)
 	}
 	fmt.Println(xmlPath)
@@ -110,7 +110,7 @@ func calculateXmlPath(path *string, global_counter *int, upd *gnmi.Update, elem 
 		addMapValues(local_counter, path, elem)
 	}
 	if *global_counter == len(elem)-1 {
-		*path += upd.GetVal().GetStringVal()
+		*path += string(upd.GetVal().GetJsonIetfVal())
 	}
 	calculateXmlPath(path, global_counter, upd, elem)
 	*path += `</` + elem[local_counter].GetName() + `>`
