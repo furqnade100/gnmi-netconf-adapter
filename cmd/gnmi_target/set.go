@@ -15,6 +15,8 @@
 package main
 
 import (
+	"encoding/json"
+
 	"github.com/google/gnxi/utils/credentials"
 	//dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 	"fmt"
@@ -59,8 +61,6 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 		// 	fmt.Println("prefix exists")
 		// 	fullPath = gnmiFullPath(prefix, path)
 		// }
-		log.Infof("JSON val: ", string(upd.GetVal().GetJsonIetfVal()))
-		log.Infof("simple val: ", upd.GetVal().GetStringVal())
 		//log.Infof(upd.getva)
 	}
 	fmt.Println(xmlPath)
@@ -72,6 +72,21 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	setResponse, err := s.Server.Set(ctx, req)
 	return setResponse, err
 	//	return nil, nil
+}
+
+func GetValue(upd *gnmi.Update) string {
+
+	fmt.Println(upd.GetVal())
+	log.Infof(string(upd.GetVal().GetJsonIetfVal()))
+	log.Infof(upd.GetVal().GetStringVal())
+	var editValue interface{}
+	editValue = make(map[string]interface{})
+	err := json.Unmarshal(upd.GetVal().GetJsonVal(), &editValue)
+	if err != nil {
+		status.Errorf(codes.Unknown, "invalid value %s", err)
+	}
+
+	return fmt.Sprintf("%v", editValue)
 }
 
 func addMapValues(count int, path *string, elem []*gnmi.PathElem) {
@@ -110,7 +125,7 @@ func calculateXmlPath(path *string, global_counter *int, upd *gnmi.Update, elem 
 		addMapValues(local_counter, path, elem)
 	}
 	if *global_counter == len(elem)-1 {
-		*path += string(upd.GetVal().GetJsonIetfVal())
+		*path += GetValue(upd)
 	}
 	calculateXmlPath(path, global_counter, upd, elem)
 	*path += `</` + elem[local_counter].GetName() + `>`
