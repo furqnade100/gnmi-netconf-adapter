@@ -41,27 +41,30 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 		fmt.Println(i, e.String())
 	}
 
-	prefix := req.GetPrefix()
+	//prefix := req.GetPrefix()
 
 	log.Infof(req.String())
+	global_counter := -1
+	var xmlPath string
 	for _, upd := range req.GetUpdate() {
 		for i, e := range upd.GetPath().Elem {
 			fmt.Println(i, e.GetName())
 			fmt.Println(i, e.GetKey())
 		}
 
-		path := upd.GetPath()
-		fullPath := path
-		if prefix != nil {
-			fmt.Println("prefix exists")
-			fullPath = gnmiFullPath(prefix, path)
-		}
-		fmt.Println(fullPath)
-
+		calculateXmlPath(&xmlPath, &global_counter, upd, upd.GetPath().Elem)
+		// path := upd.GetPath()
+		// fullPath := path
+		// if prefix != nil {
+		// 	fmt.Println("prefix exists")
+		// 	fullPath = gnmiFullPath(prefix, path)
+		// }
 		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
 		//log.Infof(string(upd.GetVal().GetJsonIetfVal()))
 		//log.Infof(upd.getva)
 	}
+	fmt.Println(xmlPath)
+	//log.Print(path)
 
 	//dataConv.Convert(req)
 	// log.Infof(req.String())
@@ -69,6 +72,49 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	setResponse, err := s.Server.Set(ctx, req)
 	return setResponse, err
 	//	return nil, nil
+}
+
+func addMapValues(count int, path *string, elem []*gnmi.PathElem) {
+
+	for key, value := range elem[count].GetKey() {
+		*path += `<` + key + `>` + value + `</` + key + `>`
+	}
+}
+
+func addNamespace(count int, path *string, elem []*gnmi.PathElem) {
+
+	switch elem[count].GetName() {
+	case "interfaces":
+		*path += ` xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces"`
+
+	case "max-sdu-table":
+		*path += ` xmlns="urn:ieee:std:802.1Q:yang:ieee802-dot1q-sched"`
+
+	default:
+		return
+	}
+}
+
+func calculateXmlPath(path *string, global_counter *int, upd *gnmi.Update, elem []*gnmi.PathElem) {
+
+	*global_counter++
+	if *global_counter >= len(elem) {
+		return
+	}
+
+	local_counter := *global_counter
+	*path += `<` + elem[local_counter].GetName()
+	addNamespace(local_counter, path, elem)
+	*path += `>`
+	if len(elem[local_counter].GetKey()) > 0 {
+		addMapValues(local_counter, path, elem)
+	}
+	if *global_counter == len(elem)-1 {
+		*path += upd.GetVal().GetStringVal()
+	}
+	calculateXmlPath(path, global_counter, upd, elem)
+	*path += `</` + elem[local_counter].GetName() + `>`
+
 }
 
 func gnmiFullPath(prefix, path *gnmi.Path) *gnmi.Path {
