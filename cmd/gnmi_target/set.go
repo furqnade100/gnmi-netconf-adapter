@@ -15,7 +15,7 @@
 package main
 
 import (
-	"encoding/json"
+	//"encoding/json"
 
 	"github.com/google/gnxi/utils/credentials"
 	//dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
@@ -76,17 +76,17 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 
 func GetValue(upd *gnmi.Update) string {
 
-	fmt.Println(upd.GetVal())
-	log.Infof(string(upd.GetVal().GetJsonIetfVal()))
-	log.Infof(upd.GetVal().GetStringVal())
-	var editValue interface{}
-	editValue = make(map[string]interface{})
-	err := json.Unmarshal(upd.GetVal().GetJsonVal(), &editValue)
-	if err != nil {
-		status.Errorf(codes.Unknown, "invalid value %s", err)
-	}
+	fmt.Println(upd.GetVal().String())
+	// log.Infof(string(upd.GetVal().GetJsonIetfVal()))
+	// log.Infof(upd.GetVal().GetStringVal())
+	// var editValue interface{}
+	// editValue = make(map[string]interface{})
+	// err := json.Unmarshal(upd.GetVal().GetJsonVal(), &editValue)
+	// if err != nil {
+	// 	status.Errorf(codes.Unknown, "invalid value %s", err)
+	// }
 
-	return fmt.Sprintf("%v", editValue)
+	return upd.GetVal().String()
 }
 
 func addMapValues(count int, path *string, elem []*gnmi.PathElem) {
