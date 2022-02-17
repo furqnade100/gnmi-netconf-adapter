@@ -33,9 +33,9 @@ func UpdateConfig(xmlChanges string) *netconf.RPCReply {
 	// </interface>
 	// </interfaces>`
 
-	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>`
+	//const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>`
 
-	reply := sendRPCRequest(methodEditConfig("running", changes))
+	reply := sendRPCRequest(methodEditConfig("running", xmlChanges))
 	log.Infof(reply.Data)
 	return reply
 }
