@@ -17,15 +17,20 @@ package main
 import (
 	//"encoding/json"
 
+	"strconv"
+
 	"github.com/google/gnxi/utils/credentials"
 	//dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 	"fmt"
-
+	//"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// type set_go ygot.GoStruct
+// Name string `yang:"Name,nomerge"`
 
 // Set overrides the Set func of gnmi.Target to provide user auth.
 func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetResponse, error) {
@@ -37,13 +42,12 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	}
 	log.Infof("allowed a Set request: %v", msg)
 	//log.Infof("Allowed set req..")
+	// var args *ygot.RFC7951JSONConfig
+	// args.AppendModuleName = true
 
-	fmt.Println("ext number = ", len(req.GetExtension()))
-	for i, e := range req.GetExtension() {
-		fmt.Println(i, e.String())
-	}
+	// var set_go ygot.GoStruct
 
-	//prefix := req.GetPrefix()
+	// ygot.ConstructIETFJSON(req, args)
 
 	log.Infof(req.String())
 	global_counter := -1
@@ -55,20 +59,25 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 		}
 
 		calculateXmlPath(&xmlPath, &global_counter, upd, upd.GetPath().Elem)
-		// path := upd.GetPath()
-		// fullPath := path
-		// if prefix != nil {
-		// 	fmt.Println("prefix exists")
-		// 	fullPath = gnmiFullPath(prefix, path)
-		// }
-		//log.Infof(upd.getva)
+
 	}
 	fmt.Println(xmlPath)
+
+	// fmt.Println("ext number = ", len(req.GetExtension()))
+	// for i, e := range req.GetExtension() {
+	// 	fmt.Println(i, e.String())
+	// }
 	//log.Print(path)
 
 	//dataConv.Convert(req)
 	// log.Infof(req.String())
-
+	// path := upd.GetPath()
+	// fullPath := path
+	// if prefix != nil {
+	// 	fmt.Println("prefix exists")
+	// 	fullPath = gnmiFullPath(prefix, path)
+	// }
+	//log.Infof(upd.getva)
 	setResponse, err := s.Server.Set(ctx, req)
 	return setResponse, err
 	//	return nil, nil
@@ -77,6 +86,8 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 func GetValue(upd *gnmi.Update) string {
 
 	fmt.Println(upd.GetVal().String())
+	bool_val := upd.GetVal().GetBoolVal()
+	fmt.Println(bool_val)
 	// log.Infof(string(upd.GetVal().GetJsonIetfVal()))
 	// log.Infof(upd.GetVal().GetStringVal())
 	// var editValue interface{}
@@ -86,7 +97,8 @@ func GetValue(upd *gnmi.Update) string {
 	// 	status.Errorf(codes.Unknown, "invalid value %s", err)
 	// }
 
-	return upd.GetVal().String()
+	//return upd.GetVal().String()
+	return strconv.FormatBool(bool_val)
 }
 
 func addMapValues(count int, path *string, elem []*gnmi.PathElem) {
