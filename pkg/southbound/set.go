@@ -23,6 +23,7 @@ func UpdateConfig(xmlChanges string) *netconf.RPCReply {
 	//reply := sendRPCRequest(methodEditConfig("running", xmlChanges))
 	//reply := sendRPCRequest()
 	log.Infof("Update config/sb/set.go")
+	log.Infof(xmlChanges)
 	// const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
 	// <interface>
 	//    <name>sw0p5</name>
@@ -33,9 +34,9 @@ func UpdateConfig(xmlChanges string) *netconf.RPCReply {
 	// </interface>
 	// </interfaces>`
 
-	//const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>`
+	const changes = `<interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces"><interface><name>sw0p5</name><enabled>false</enabled></interface></interfaces>`
 
-	reply := sendRPCRequest(methodEditConfig("running", xmlChanges))
+	reply := sendRPCRequest(methodEditConfig("running", changes))
 	log.Infof(reply.Data)
 	return reply
 }
