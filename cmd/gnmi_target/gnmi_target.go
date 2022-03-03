@@ -34,6 +34,7 @@ import (
 	"github.com/onosproject/gnxi-simulators/pkg/gnmi/modeldata/gostruct"
 
 	"github.com/google/gnxi/utils/credentials"
+	nb "github.com/onosproject/gnmi-netconf-adapter/pkg/northbound/admin"
 
 	//sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
@@ -82,6 +83,7 @@ func main() {
 
 	//adapter.Convert()g
 	//sb.UpdateConfig("test")
+	nb.ListPlugins()
 
 	log.Infof("Starting gNMI agent to listen on %s", *bindAddr)
 	listen, err := net.Listen("tcp", *bindAddr)
