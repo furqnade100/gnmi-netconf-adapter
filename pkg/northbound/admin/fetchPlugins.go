@@ -26,7 +26,7 @@ func ListPlugins() error {
 
 	stream, err := client.ListRegisteredModels(context.Background(), &req)
 	if err != nil {
-		fmt.Println("error in fetching")
+		fmt.Println(err.Error())
 		return err
 	} else {
 		fmt.Println("List plugins succesfull")
