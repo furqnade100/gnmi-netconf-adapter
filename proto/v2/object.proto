@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package v2;
+
+import "proto/gogoproto/gogo.proto";
+import "proto/google/protobuf/timestamp.proto";
+
+message ObjectMeta {
+    string key = 1;
+    uint64 version = 2;
+    uint64 revision = 3 [(gogoproto.casttype) = "Revision"];
+    google.protobuf.Timestamp created = 4 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+    google.protobuf.Timestamp updated = 5 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+    google.protobuf.Timestamp deleted = 6 [(gogoproto.stdtime) = true];
+}

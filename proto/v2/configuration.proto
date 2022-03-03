@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package v2;
+
+import "proto/gogoproto/gogo.proto";
+import "proto/v2/object.proto";
+import "proto/v2/value.proto";
+//import "proto/v2/object.proto";
+//import "proto/v2/value.proto";
+
+// Configuration represents complete desired target configuration
+message Configuration {
+    ObjectMeta meta = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false];
+
+    // 'id' is a unique configuration identifier
+    string id = 2 [(gogoproto.customname) = "ID", (gogoproto.casttype) = "ConfigurationID"];
+
+    // 'target_id' is the target to which the desired target configuration applies
+    string target_id = 3 [(gogoproto.customname) = "TargetID", (gogoproto.casttype) = "TargetID"];
+
+    // 'values' is a map of path/values to set
+    map<string, PathValue> values = 4;
+
+    // 'index' is the index of the configuration values
+    uint64 index = 5 [(gogoproto.casttype) = "Index"];
+
+    // 'ConfigurationStatus' is the current lifecycle status of the configuration
+    ConfigurationStatus status = 6 [(gogoproto.nullable) = false];
+}
+
+// ConfigurationStatus is the status of a Configuration
+message ConfigurationStatus {
+    // 'state' is the configuration state
+    State state = 1;
+
+    // 'mastership' is the current mastership info for the configuration
+    MastershipInfo mastership = 2 [(gogoproto.nullable) = false];
+
+    // 'proposed' is the proposed configuration status
+    ProposedConfigurationStatus proposed = 3 [(gogoproto.nullable) = false];
+
+    // 'committed' is the committed configuration status
+    CommittedConfigurationStatus committed = 4 [(gogoproto.nullable) = false];
+
+    // 'applied' is the applied configuration status
+    AppliedConfigurationStatus applied = 5 [(gogoproto.nullable) = false];
+
+    // State is the configuration state
+    enum State {
+        UNKNOWN = 0;
+        SYNCHRONIZING = 1;
+        SYNCHRONIZED = 2;
+        PERSISTED = 3;
+    }
+}
+
+message ProposedConfigurationStatus {
+    uint64 index = 1 [(gogoproto.casttype) = "Index"];
+}
+
+message CommittedConfigurationStatus {
+    uint64 index = 1 [(gogoproto.casttype) = "Index"];
+}
+
+message AppliedConfigurationStatus {
+    uint64 index = 1 [(gogoproto.casttype) = "Index"];
+    MastershipInfo mastership = 2 [(gogoproto.nullable) = false];
+    map<string, PathValue> values = 3;
+}
+
+message MastershipInfo {
+    string master = 1;
+    uint64 term = 2 [(gogoproto.casttype) = "MastershipTerm"];
+}
+
+// ConfigurationEvent configuration store event
+message ConfigurationEvent {
+    // EventType configuration event types for configuration store
+    enum EventType {
+        // UNKNOWN indicates unknown configuration store event
+        UNKNOWN = 0;
+        // CREATED indicates the configuration entry in the store is created
+        CREATED = 1;
+        // UPDATED indicates the configuration entry in the store is updated
+        UPDATED = 2;
+        // DELETED indicates the configuration entry in the store is deleted
+        DELETED = 3;
+        // REPLAYED
+        REPLAYED = 4;
+    }
+
+    // EventType configuration event type
+    EventType type = 1;
+    Configuration configuration = 2 [(gogoproto.nullable) = false];
+}
