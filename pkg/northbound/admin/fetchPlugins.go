@@ -12,7 +12,7 @@ func ListPlugins() error {
 	opts := []grpc.DialOption{
 		grpc.WithInsecure(),
 	}
-	conn, err := grpc.Dial("onos-config:5150", opts...)
+	conn, err := grpc.Dial("onos-config:2150", opts...)
 	if err != nil {
 		return err
 	} else {
