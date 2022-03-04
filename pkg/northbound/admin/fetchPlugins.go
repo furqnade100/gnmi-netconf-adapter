@@ -83,9 +83,12 @@ func ListPlugins() error {
 			return err
 		}
 		allPlugins = append(allPlugins, in)
+		fmt.Println("All plugins= ", allPlugins)
+		fmt.Println("RW paths= ", allPlugins[0].GetInfo().GetReadWritePath())
 	}
-	fmt.Println("All plugins= ", allPlugins)
-	fmt.Println("RW paths= ", allPlugins[0].GetInfo().GetReadWritePath())
+
+	//fmt.Println("All plugins= ")
+	//fmt.Println("RW paths= ", allPlugins[0].GetInfo().GetReadWritePath())
 	return nil
 }
 
