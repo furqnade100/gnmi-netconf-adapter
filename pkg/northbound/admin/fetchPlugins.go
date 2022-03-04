@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/gnxi/utils/credentials"
 	"github.com/onosproject/onos-api/go/onos/config/admin"
 	"google.golang.org/grpc"
 )
 
 func ListPlugins() error {
-	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
-	}
-	conn, err := grpc.Dial("onos-config:2150", opts...)
+	// opts := []grpc.DialOption{
+	// 	grpc.WithInsecure(),
+	// }
+
+	opts := credentials.ClientCredentials("onos-config")
+	conn, err := grpc.Dial("onos-config:5150", opts...)
 	if err != nil {
 		return err
 	} else {
