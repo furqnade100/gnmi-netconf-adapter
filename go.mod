@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/Juniper/go-netconf v0.1.1
+	github.com/golang/protobuf v1.5.0
 	github.com/google/gnxi v0.0.0-20190228205329-8521faedac37
 	github.com/onosproject/gnxi-simulators v0.6.5
 	github.com/onosproject/onos-api/go v0.9.7
