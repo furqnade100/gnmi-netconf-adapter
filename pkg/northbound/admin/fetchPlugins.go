@@ -58,7 +58,7 @@ func ListPlugins() error {
 		return err
 	} else {
 		fmt.Println("List plugins succesfull")
-		stream.Recv()
+		//stream.Recv()
 	}
 	//fmt.Println(stream)
 	//var tableFormat Format
