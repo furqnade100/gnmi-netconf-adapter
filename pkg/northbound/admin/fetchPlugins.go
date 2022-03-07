@@ -64,13 +64,15 @@ func ListPlugins() error {
 	//var tableFormat Format
 	//tableFormat = pluginListTemplateVerbose
 
-	allPlugins := []*admin.ModelPlugin{}
+	//allPlugins := []*admin.ModelPlugin{}
+	plugin := new(admin.ModelPlugin)
 	//stream.
 	for {
 		fmt.Println("in for loop")
-		//fmt.Println(stream.RecvMsg())
-		in, err := stream.Recv()
-		fmt.Println(in)
+		err := stream.RecvMsg(plugin)
+		fmt.Println(plugin.GetInfo().GetName())
+		//in, err := stream.Recv()
+		//fmt.Println(in)
 		if err == io.EOF {
 			//	if e := tableFormat.Execute(outputWriter, false, 0, allPlugins); e != nil {
 			//		return e
@@ -83,10 +85,10 @@ func ListPlugins() error {
 			fmt.Println(err.Error())
 			return err
 		}
-		fmt.Println(in.GetInfo().GetName())
-		fmt.Println(in.GetInfo().GetReadWritePath())
+		//fmt.Println(in.GetInfo().GetName())
+		//fmt.Println(in.GetInfo().GetReadWritePath())
 
-		allPlugins = append(allPlugins, in)
+		//allPlugins = append(allPlugins, in)
 		// fmt.Println("All plugins= ", allPlugins)
 		// fmt.Println("RW paths= ", allPlugins[0].GetInfo().GetReadWritePath())
 	}
