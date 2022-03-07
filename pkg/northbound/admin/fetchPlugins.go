@@ -70,6 +70,7 @@ func ListPlugins() error {
 		fmt.Println("in for loop")
 		//fmt.Println(stream.RecvMsg())
 		in, err := stream.Recv()
+		fmt.Println(in)
 		if err == io.EOF {
 			//	if e := tableFormat.Execute(outputWriter, false, 0, allPlugins); e != nil {
 			//		return e
