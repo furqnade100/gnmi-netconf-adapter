@@ -5,28 +5,22 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"reflect"
-	"regexp"
-	"strings"
-	"text/tabwriter"
-	"text/template"
-	"text/template/parse"
-	"time"
 
-	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
+	//"regexp"
+
 	"github.com/onosproject/onos-api/go/onos/config/admin"
 	"github.com/onosproject/onos-lib-go/pkg/certs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-const pluginListTemplateVerbose = "table{{.Id}}\t{{.Status}}\t{{.Endpoint}}\t{{.Info.Name}}\t{{.Info.Version}}\t{{.Error}}\t{{.Info.ModelData}}"
+//const pluginListTemplateVerbose = "table{{.Id}}\t{{.Status}}\t{{.Endpoint}}\t{{.Info.Name}}\t{{.Info.Version}}\t{{.Error}}\t{{.Info.ModelData}}"
 
 // Format defines a type for a string that can be used as template to format data.
 type Format string
 
-var nameFinder = regexp.MustCompile(`\.([\._A-Za-z0-9]*)}}`)
-var outputWriter io.Writer
+//var nameFinder = regexp.MustCompile(`\.([\._A-Za-z0-9]*)}}`)
+//var outputWriter io.Writer
 
 func ListPlugins() error {
 	// opts := []grpc.DialOption{
@@ -67,28 +61,30 @@ func ListPlugins() error {
 		stream.Recv()
 	}
 	//fmt.Println(stream)
-	var tableFormat Format
-	tableFormat = pluginListTemplateVerbose
+	//var tableFormat Format
+	//tableFormat = pluginListTemplateVerbose
 
 	allPlugins := []*admin.ModelPlugin{}
 
 	for {
 		in, err := stream.Recv()
-		fmt.Println(in.GetInfo().GetName())
-		fmt.Println(in.GetInfo().GetReadWritePath())
 		if err == io.EOF {
-		//	if e := tableFormat.Execute(outputWriter, false, 0, allPlugins); e != nil {
-				fmt.Println("Error in recv")
-				return e
-			}
+			//	if e := tableFormat.Execute(outputWriter, false, 0, allPlugins); e != nil {
+			//		return e
+			//	}
+			fmt.Println("End of file")
 			return nil
 		}
+
 		if err != nil {
 			return err
 		}
+		fmt.Println(in.GetInfo().GetName())
+		fmt.Println(in.GetInfo().GetReadWritePath())
+
 		allPlugins = append(allPlugins, in)
-		fmt.Println("All plugins= ", allPlugins)
-		fmt.Println("RW paths= ", allPlugins[0].GetInfo().GetReadWritePath())
+		// fmt.Println("All plugins= ", allPlugins)
+		// fmt.Println("RW paths= ", allPlugins[0].GetInfo().GetReadWritePath())
 	}
 
 	//fmt.Println("All plugins= ")
