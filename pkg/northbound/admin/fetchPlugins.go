@@ -79,7 +79,7 @@ func ListPlugins() error {
 		}
 
 		if err != nil {
-			fmt.Println("Error received")
+			fmt.Println(err.Error())
 			return err
 		}
 		fmt.Println(in.GetInfo().GetName())
