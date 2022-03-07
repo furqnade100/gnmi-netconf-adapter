@@ -65,8 +65,10 @@ func ListPlugins() error {
 	//tableFormat = pluginListTemplateVerbose
 
 	allPlugins := []*admin.ModelPlugin{}
-
+	//stream.
 	for {
+		fmt.Println("in for loop")
+		//fmt.Println(stream.RecvMsg())
 		in, err := stream.Recv()
 		if err == io.EOF {
 			//	if e := tableFormat.Execute(outputWriter, false, 0, allPlugins); e != nil {
@@ -77,6 +79,7 @@ func ListPlugins() error {
 		}
 
 		if err != nil {
+			fmt.Println("Error received")
 			return err
 		}
 		fmt.Println(in.GetInfo().GetName())
