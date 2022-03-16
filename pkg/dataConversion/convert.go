@@ -12,19 +12,11 @@ import (
 var log = logging.GetLogger("main")
 
 // Takes in a gnmi get request and returns a gnmi get response.
-func Convert(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
+func ConvertSetReqtoXML(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
 
 	/************************************************************
 	Implementation of data conversion should be implemented here.
 	*************************************************************/
-	// Example of data conversion initiation
-	// log.Infof(req.Prefix.Origin)
-	// log.Infof(req.Prefix.Target)
-
-	// xmlRequest := json2Xml(req.String())
-
-	// var reply = ""
-
 	log.Infof(req.String())
 	global_counter := -1
 	var xmlPath string
@@ -33,9 +25,7 @@ func Convert(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
 			fmt.Println(i, e.GetName())
 			fmt.Println(i, e.GetKey())
 		}
-
 		calculateXmlPath(&xmlPath, &global_counter, upd, upd.GetPath().Elem)
-
 	}
 	fmt.Println(xmlPath)
 
@@ -58,6 +48,14 @@ func Convert(req *gnmi.SetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
 	//resp := &gnmi.GetResponse{Notification: notifications}
 	//return resp
 	//return reply
+}
+
+func ConvertGetReqtoXML() { //*gnmi.GetRequest, typeOfRequest string) {
+
+	/************************************************************
+	Implementation of data conversion should be implemented here.
+	*************************************************************/
+	fmt.Println(sb.GetFullConfig())
 }
 
 func GetValue(upd *gnmi.Update) string {

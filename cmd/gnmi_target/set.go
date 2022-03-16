@@ -18,7 +18,7 @@ import (
 	//"encoding/json"
 	//"strconv"
 	"github.com/google/gnxi/utils/credentials"
-	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
+	//dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 
 	//"fmt"
 	//"github.com/openconfig/ygot/ygot"
@@ -43,12 +43,11 @@ func (s *server) Set(ctx context.Context, req *gnmi.SetRequest) (*gnmi.SetRespon
 	//log.Infof("Allowed set req..")
 	// var args *ygot.RFC7951JSONConfig
 	// args.AppendModuleName = true
-
 	// var set_go ygot.GoStruct
-
 	// ygot.ConstructIETFJSON(req, args)
 
-	dataConv.Convert(req)
+	//dataConv.ConvertSetReqtoXML(req)
+
 	// fmt.Println("ext number = ", len(req.GetExtension()))
 	// for i, e := range req.GetExtension() {
 	// 	fmt.Println(i, e.String())
