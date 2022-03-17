@@ -29,12 +29,12 @@ func GetConfig(section, format string) (string, error) {
 	secs := strings.Split(section, ">")
 	nSecs := len(secs) - 1
 	command := fmt.Sprintf("<get-config><source><%s/>", format)
-	if section == "full" {
-		command += "</source></get-config>"
-	}
-	if section == "interfaces" {
-		command += "</source><filter><interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface/></interfaces></filter></get-config>"
-	}
+	// if section == "full" {
+	// 	command += "</source></get-config>"
+	// }
+	// if section == "interfaces" {
+	command += "</source><filter><interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface/></interfaces></filter></get-config>"
+	//}
 	if nSecs > 0 {
 		command += "<filter>"
 		for i := 0; i < nSecs; i++ {
