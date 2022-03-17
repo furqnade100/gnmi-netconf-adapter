@@ -61,7 +61,9 @@ func GetConfig(section, format string) (string, error) {
 	// Close connetion to network device when this function is done executing
 	defer s.Close()
 
-	reply, err := s.Exec(netconf.RawMethod(command))
+	r := netconf.RawMethod(command)
+	fmt.Println(r)
+	reply, err := s.Exec(r)
 	if err != nil {
 		return "", err
 	}
