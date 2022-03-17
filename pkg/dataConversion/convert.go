@@ -55,7 +55,7 @@ func ConvertGetReqtoXML() { //*gnmi.GetRequest, typeOfRequest string) {
 	/************************************************************
 	Implementation of data conversion should be implemented here.
 	*************************************************************/
-	fmt.Println(sb.GetConfig("running"))
+	fmt.Println(sb.GetConfig("full", "xml"))
 }
 
 func GetValue(upd *gnmi.Update) string {
