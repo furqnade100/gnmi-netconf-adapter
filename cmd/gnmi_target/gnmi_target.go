@@ -36,7 +36,7 @@ import (
 	"github.com/google/gnxi/utils/credentials"
 
 	//sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
-	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
+	//	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
@@ -82,7 +82,7 @@ func main() {
 	reflection.Register(g)
 
 	//adapter.Convert()
-	dataConv.ConvertGetReqtoXML()
+	//dataConv.ConvertGetReqtoXML()
 
 	log.Infof("Starting gNMI agent to listen on %s", *bindAddr)
 	listen, err := net.Listen("tcp", *bindAddr)
