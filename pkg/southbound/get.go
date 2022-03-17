@@ -2,6 +2,7 @@ package southbound
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Juniper/go-netconf/netconf"
@@ -27,25 +28,27 @@ func GetFullConfig() *netconf.RPCReply {
 // <section> path with a ">" symbol, i.e. "system>login" or "protocols>ospf>area".
 func GetConfig(section, format string) (string, error) {
 	secs := strings.Split(section, ">")
-	nSecs := len(secs) - 1
+	nSecs := len(secs)
 	command := fmt.Sprintf("<get-config><source><%s/>", format)
-	// if section == "full" {
-	// 	command += "</source></get-config>"
-	// }
+	if section == "full" {
+		command += "</source></get-config>"
+	}
 	// if section == "interfaces" {
-	command += "</source><filter><interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface/></interfaces></filter></get-config>"
-	//}
-	if nSecs > 0 {
-		command += "<filter>"
-		for i := 0; i < nSecs; i++ {
-			command += fmt.Sprintf("<%s>", secs[i])
+	// command += "</source><filter><interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\"><interface/></interfaces></filter></get-config>"
+	// }
+	fmt.Println("number of secs = " + strconv.Itoa(nSecs))
+	if nSecs > 1 {
+		fmt.Println("in the loop")
+		command += "</source><filter>"
+		for i := 0; i < nSecs-1; i++ {
+			command += fmt.Sprintf("<%s xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\">", secs[i])
 		}
-		command += fmt.Sprintf("<%s/>", secs[nSecs])
+		command += fmt.Sprintf("<%s/>", secs[nSecs-1])
 
-		for j := nSecs - 1; j >= 0; j-- {
+		for j := nSecs - 2; j >= 0; j-- {
 			command += fmt.Sprintf("</%s>", secs[j])
 		}
-		command += fmt.Sprint("</configuration></get-configuration>")
+		command += fmt.Sprint("</filter></get-config>")
 	}
 
 	sshConfig := &ssh.ClientConfig{
