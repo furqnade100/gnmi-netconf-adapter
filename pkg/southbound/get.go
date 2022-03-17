@@ -28,7 +28,7 @@ func GetFullConfig() *netconf.RPCReply {
 func GetConfig(section, format string) (string, error) {
 	secs := strings.Split(section, ">")
 	nSecs := len(secs) - 1
-	command := fmt.Sprintf("<get-config\"><source><%s/>", format)
+	command := fmt.Sprintf("<get-config><source><%s/>", format)
 	if section == "full" {
 		command += "</source></get-config>"
 	}
