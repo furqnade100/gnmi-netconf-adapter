@@ -28,12 +28,12 @@ func GetFullConfig() *netconf.RPCReply {
 func GetConfig(section, format string) (string, error) {
 	secs := strings.Split(section, ">")
 	nSecs := len(secs) - 1
-	command := fmt.Sprintf("<get-configuration format=\"%s\"><configuration>", format)
+	command := fmt.Sprintf("<get-config\"><source><%s/>", format)
 	if section == "full" {
-		command += "</configuration></get-configuration>"
+		command += "</source></get-config>"
 	}
 
-	if nSecs >= 0 {
+	if nSecs > 0 {
 		for i := 0; i < nSecs; i++ {
 			command += fmt.Sprintf("<%s>", secs[i])
 		}
