@@ -83,7 +83,7 @@ func main() {
 
 	//adapter.Convert()
 	//dataConv.GetConfig("full", "running")
-	sb.GetFullConfig()
+	log.Infof(sb.GetFullConfig().Data)
 
 	log.Infof("Starting gNMI agent to listen on %s", *bindAddr)
 	listen, err := net.Listen("tcp", *bindAddr)
