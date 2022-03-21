@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/google/gnxi/utils/credentials"
+	dataConv "github.com/onosproject/gnmi-netconf-adapter/pkg/dataConversion"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -39,7 +40,7 @@ func (s *server) Get(ctx context.Context, req *gnmi.GetRequest) (*gnmi.GetRespon
 	***********************************************************/
 	// Example of data conversion initiation
 	log.Infof("The incoming get request contains: %s", req.String())
-	//dataConv.Convert(req, "Get")
+	dataConv.ConvertGetReqtoXML(req)
 
 	notifications := make([]*gnmi.Notification, 1)
 	prefix := req.GetPrefix()
