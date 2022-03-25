@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/ssh"
-	//sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 	"github.com/Juniper/go-netconf/netconf"
+	sb "github.com/onosproject/gnmi-netconf-adapter/pkg/southbound"
 	"github.com/openconfig/gnmi/proto/gnmi"
+	"golang.org/x/crypto/ssh"
 )
 
 func ConvertGetReqtoXML(req *gnmi.GetRequest) { //*gnmi.GetRequest, typeOfRequest string) {
@@ -16,7 +16,8 @@ func ConvertGetReqtoXML(req *gnmi.GetRequest) { //*gnmi.GetRequest, typeOfReques
 	/************************************************************
 	Implementation of data conversion should be implemented here.
 	*************************************************************/
-	GetConfig("interfaces>interface", "running")
+	//GetConfig("interfaces>interface", "running")
+	fmt.Println(sb.GetFullConfig())
 }
 
 // GetConfig returns the full configuration, or configuration starting at <section>.
